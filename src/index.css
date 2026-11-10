@@ -1,0 +1,149 @@
+/* ==================================================
+   CONCRETECHECK — GLOBAL DESIGN FOUNDATION
+   Global Reset + Colors + Typography
+   ================================================== */
+
+:root {
+  /* BRAND COLORS */
+  --navy: #142b46;
+  --navy-light: #203e60;
+  --blue: #2563a6;
+  --blue-hover: #1d4f85;
+  --blue-soft: #eaf2fb;
+
+  /* ACCENT COLORS */
+  --teal: #0d9488;
+  --teal-hover: #087f75;
+  --teal-soft: #e5f5f2;
+
+  /* STATUS COLORS */
+  --green: #16845d;
+  --green-soft: #e8f6ef;
+  --red: #c24141;
+  --red-soft: #fff0f0;
+  --amber: #b7791f;
+  --amber-soft: #fff6e5;
+
+  /* NEUTRAL COLORS */
+  --text-primary: #182638;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+
+  --border: #e1e8f0;
+  --border-strong: #cbd5e1;
+
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --background: #f1f5f9;
+
+  /* DESIGN TOKENS */
+  --radius-sm: 6px;
+  --radius-md: 9px;
+  --radius: 12px;
+  --radius-lg: 16px;
+
+  --shadow-sm: 0 1px 4px rgba(20, 43, 70, 0.05);
+  --shadow: 0 2px 10px rgba(20, 43, 70, 0.055);
+  --shadow-md: 0 5px 18px rgba(20, 43, 70, 0.09);
+
+  --transition: 0.18s ease;
+
+  /* GLOBAL */
+  font-family: Arial, Helvetica, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  color: var(--text-primary);
+  background: var(--background);
+}
+
+/* GLOBAL RESET */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-primary);
+  background: var(--background);
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font-size: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* TEXT SELECTION */
+
+::selection {
+  color: #ffffff;
+  background: var(--blue);
+}
+
+/* ACCESSIBILITY */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
