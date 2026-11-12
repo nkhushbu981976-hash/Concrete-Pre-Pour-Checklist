@@ -1,185 +1,156 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { createId } from './utils/ids.js'
+import { STORAGE_VERSION, normalizeItem, normalizeItems as normalizeSchemaItems, cleanTemplateItems as cleanSchemaTemplateItems, migrateInspectionData, collectMediaIds } from './storage/schema.js'
+import { preparePhoto, putPhoto, getPhoto, getPhotos, deletePhoto, createPhotoUrl, revokePhotoUrl } from './storage/mediaDb.js'
+import { archiveSnapshot, makeRestoredInspection } from './storage/history.js'
+import ChecklistItemCard, { SubCheckList } from './components/ChecklistItemCard.jsx'
+import { createBackup, parseBackup, importBackup } from './storage/backup.js'
 
 const STORAGE_KEY = 'concretecheck-inspection-v1'
-const STORAGE_VERSION = 3
 const STORAGE_RECOVERY_KEY = `${STORAGE_KEY}-recovery`
 const ELEMENTS = ['Slab', 'Beam', 'Column', 'Footing']
 const LEVELS = ['Standard', 'Detailed']
 const STATUSES = ['Pending', 'OK', 'Not OK', 'N/A']
 const DESIGNS = ['Professional', 'Detailed', 'Compact']
+const FILTER_OPTIONS = ['All', 'Pending', 'OK', 'Not OK', 'N/A']
+const MOBILE_LAYOUT_QUERY = '(max-width: 600px)'
 let storageLoadWarning = ''
 let storageLoadBlocked = false
 let unreadableStorageBackup = null
 
-// [category, inspection requirement, suggested acceptance reference]
+function MobileChecklistItem({ item, number, showCriteria, onShowCriteria, onStatusChange, onSubCheckChange, onOpen }) {
+  const notesCount = [item.notes?.observations || item.remarks, item.notes?.comments].filter(value => String(value || '').trim()).length
+  const photos = (item.mediaIds || []).length
+  const actions = item.actions || []
+  const openActions = actions.filter(action => action.status !== 'Completed').length
+  return <article className={`mobile-item-preview mobile-status-${item.status.toLowerCase().replace(' ', '-')}`}>
+    <div className="mobile-item-preview-top"><span className="mobile-item-number">ITEM {String(number).padStart(2, '0')}</span></div>
+    <h3>{item.requirement?.trim() || 'Untitled inspection item'}</h3>
+    <div className="mobile-item-criteria"><strong>Acceptance criteria</strong>{showCriteria ? <p>{item.criteria?.trim() || 'No acceptance criteria entered.'}</p> : <p className="criteria-hidden">Hidden · <button type="button" onClick={onShowCriteria}>Show criteria</button></p>}</div>
+    <SubCheckList subChecks={item.subChecks || []} onChange={onSubCheckChange} compact status={item.status} />
+    <div className="mobile-item-counts"><span>{notesCount} notes</span><span>{photos} photos</span><span>{actions.length} actions · {openActions} open</span></div>
+    <div className="mobile-status-control" role="group" aria-label={`Set status for item ${number}`}>{STATUSES.map(status => <button type="button" key={status} className={`status-choice status-choice-${status.toLowerCase().replace(' ', '-')} ${item.status === status ? 'is-selected' : ''}`} aria-pressed={item.status === status} onClick={() => onStatusChange(status)}>{status}</button>)}</div>
+    <button type="button" className="mobile-open-item" onClick={onOpen}>Open full inspection <span aria-hidden="true">→</span></button>
+  </article>
+}
+let pendingMigrationBackup = null
+
+function subscribeToMobileLayout(onChange) {
+  const query = window.matchMedia(MOBILE_LAYOUT_QUERY)
+  query.addEventListener('change', onChange)
+  return () => query.removeEventListener('change', onChange)
+}
+
+function getMobileLayoutSnapshot() {
+  return window.matchMedia(MOBILE_LAYOUT_QUERY).matches
+}
+
+function getMobileLayoutServerSnapshot() {
+  return false
+}
+
+// [category, inspection requirement, suggested acceptance reference, quick sub-check reminders]
 const T = {
   Slab: {
     Standard: [
-      ['FORMWORK','Slab formwork dimensions and levels verified','Check dimensions, levels and soffit alignment against approved drawings.'],
-      ['FORMWORK','Formwork alignment and stability checked','Check alignment, supports, bracing and stability.'],
-      ['FORMWORK','Formwork joints are tight and leak-proof','Check joints to prevent cement grout leakage.'],
-      ['FORMWORK','Formwork is clean and free from debris','Remove loose materials, dust and standing water.'],
-      ['REINFORCEMENT','Reinforcement bar diameter and spacing verified','Verify bar diameter, spacing and arrangement against approved drawings.'],
-      ['REINFORCEMENT','Concrete cover and spacers checked','Verify specified concrete cover and proper spacer placement.'],
-      ['REINFORCEMENT','Laps, anchorage and binding checked','Verify lap lengths, anchorage and secure binding.'],
-      ['EMBEDDED ITEMS','Sleeves, conduits and inserts installed','Verify locations and sizes against approved drawings.'],
-      ['CLEANLINESS','Slab surface and pour area cleaned','Remove debris, loose binding wire and unwanted materials.'],
-      ['APPROVAL','Required inspection and approvals completed','Record required inspections and approvals before pouring.'],
+      ['DRAWINGS & SET-OUT','Slab layout, dimensions and levels verified','Check the latest approved drawing revision, grid, openings and levels.', ['Approved drawing and revision checked','Grid, slab dimensions and openings checked','Levels checked against project references']],
+      ['FORMWORK','Slab formwork stable and ready','Check soffit dimensions, level, supports, bracing, tight joints and cleanliness.', ['Soffit dimensions and level checked','Supports and bracing checked','Joints, cleanliness and leakage risk checked']],
+      ['REINFORCEMENT','Slab reinforcement arrangement verified','Check bar size, quantity, spacing and position against approved drawings.', ['Bar size and reinforcement quantity checked','Spacing and bar direction checked','Position checked against approved drawings']],
+      ['REINFORCEMENT','Cover, supports, laps and anchorage checked','Verify specified cover, chairs or spacers, lap locations and anchorage details.', ['Specified cover checked','Chairs and spacers are stable','Lap locations and anchorage checked']],
+      ['PRE-POUR READINESS','Embedded items and pour area ready','Check specified inserts and services, remove debris or standing water, and record required approvals.', ['Specified sleeves, conduits and inserts checked','Pour area is clean and free of standing water','Required inspection approvals recorded']],
+      ['PLACEMENT READINESS','Concrete placement and testing ready','Confirm approved mix, sampling arrangements, placing and vibration access, weather precautions and site safety.', ['Approved mix and delivery requirements confirmed','Sampling and testing arrangements ready','Placement access, weather and site safety checked']],
     ],
     Detailed: [
-      ['DRAWING','Latest approved structural drawings available','Confirm drawing number and revision against the latest approved documents.'],
-      ['FORMWORK','Slab thickness and dimensions verified','Check slab thickness, dimensions and step locations against approved drawings.'],
-      ['FORMWORK','Soffit level and slab top level checked','Verify levels, camber where specified and finished level references.'],
-      ['FORMWORK','Formwork alignment and stability checked','Inspect supports, props, bracing, joints and overall stability.'],
-      ['FORMWORK','Formwork joints sealed properly','Check joints for gaps and possible grout leakage.'],
-      ['FORMWORK','Formwork surface cleaned and treated','Remove debris and confirm release agent is properly applied where specified.'],
-      ['REINFORCEMENT','Bottom reinforcement diameter and spacing verified','Check bar size, spacing, direction and arrangement against drawings.'],
-      ['REINFORCEMENT','Top reinforcement and extra bars verified','Check top bars, additional reinforcement and support arrangements.'],
-      ['REINFORCEMENT','Concrete cover and cover blocks checked','Verify specified cover, cover block type, spacing and stability.'],
-      ['REINFORCEMENT','Lap lengths and lap locations checked','Verify lap lengths and locations against approved details.'],
-      ['REINFORCEMENT','Reinforcement anchorage and binding checked','Check anchorage, hooks, bends and secure binding.'],
-      ['REINFORCEMENT','Reinforcement clean and free from harmful contamination','Check for loose rust, oil, mud, paint or other harmful materials.'],
-      ['EMBEDDED ITEMS','Electrical conduits and junction boxes checked','Verify locations, fixing and coordination with reinforcement.'],
-      ['EMBEDDED ITEMS','Plumbing sleeves and openings checked','Verify size, location and fixing against coordinated drawings.'],
-      ['CONSTRUCTION JOINTS','Construction joint preparation checked','Verify location and preparation against approved method and drawings.'],
-      ['CLEANLINESS','Slab and formwork cleaned before pouring','Remove debris, binding wire, standing water and loose materials.'],
-      ['ACCESS','Concrete placing and vibration access checked','Confirm access for concrete placement, vibration and inspection.'],
-      ['APPROVAL','Required inspection and approvals completed','Confirm required inspection records and approvals before pouring.'],
+      ['DRAWINGS & SET-OUT','Slab layout, dimensions and levels verified','Check the latest approved drawing revision, grid, openings and levels.', ['Approved drawing and revision checked','Grid, slab dimensions and openings checked','Levels checked against project references']],
+      ['FORMWORK','Slab formwork stable and ready','Check soffit dimensions, level, supports, bracing, tight joints and cleanliness.', ['Soffit dimensions and level checked','Supports and bracing checked','Joints, cleanliness and leakage risk checked']],
+      ['REINFORCEMENT','Slab reinforcement arrangement verified','Check bar size, quantity, spacing and position against approved drawings.', ['Bar size and reinforcement quantity checked','Spacing and bar direction checked','Position checked against approved drawings']],
+      ['REINFORCEMENT','Additional bars around openings and edges checked','Verify trimming bars, support bars and local reinforcement where detailed.', ['Opening trimming bars checked','Edge and support reinforcement checked','Local reinforcement matches the approved details']],
+      ['REINFORCEMENT','Cover, supports, laps and anchorage checked','Verify specified cover, chairs or spacers, lap locations and anchorage details.', ['Specified cover checked','Chairs and spacers are stable','Lap locations and anchorage checked']],
+      ['CONSTRUCTION JOINTS','Construction joints and waterstops checked','Confirm joint locations, preparation and waterstops where specified.', ['Joint location matches approved details','Joint face preparation checked','Specified waterstop continuity checked']],
+      ['PRE-POUR READINESS','Embedded items and pour area ready','Check specified inserts and services, remove debris or standing water, and record required approvals.', ['Specified sleeves, conduits and inserts checked','Pour area is clean and free of standing water','Required inspection approvals recorded']],
+      ['PLACEMENT READINESS','Concrete placement and testing ready','Confirm approved mix, sampling arrangements, placing and vibration access, weather precautions and site safety.', ['Approved mix and delivery requirements confirmed','Sampling and testing arrangements ready','Placement access, weather and site safety checked']],
     ],
   },
   Beam: {
     Standard: [
-      ['FORMWORK','Beam dimensions and alignment verified','Verify beam width, depth, levels and alignment against approved drawings.'],
-      ['FORMWORK','Beam formwork properly supported','Check props, supports, bracing and stability.'],
-      ['FORMWORK','Formwork joints are tight and clean','Check joints for grout leakage and remove debris.'],
-      ['REINFORCEMENT','Main reinforcement size and arrangement verified','Verify bar diameter, number and arrangement against approved drawings.'],
-      ['REINFORCEMENT','Stirrups size and spacing verified','Check stirrup diameter, spacing and positioning.'],
-      ['REINFORCEMENT','Concrete cover and spacers checked','Verify specified cover and proper spacer placement.'],
-      ['REINFORCEMENT','Laps, anchorage and beam-column connections checked','Verify lap lengths, anchorage and connection details.'],
-      ['EMBEDDED ITEMS','Sleeves and embedded items checked','Verify required openings and embedded items.'],
-      ['CLEANLINESS','Beam formwork cleaned before pouring','Remove loose materials, dust and standing water.'],
-      ['APPROVAL','Required inspection and approvals completed','Record required inspections and approvals before pouring.'],
+      ['DRAWINGS & SET-OUT','Beam layout, dimensions and levels verified','Check the latest approved drawing revision, grid, dimensions and levels.', ['Approved drawing and revision checked','Beam grid, dimensions and levels checked','Beam alignment checked at supports']],
+      ['FORMWORK','Beam formwork aligned, supported and ready','Check beam dimensions, soffit level, supports, bracing, tight joints and cleanliness.', ['Beam width, depth and soffit level checked','Supports and bracing checked','Joints, cleanliness and leakage risk checked']],
+      ['REINFORCEMENT','Beam bars and stirrups verified','Check bar size, quantity, arrangement and stirrup spacing against approved drawings.', ['Top and bottom bar size and quantity checked','Stirrups and spacing checked against drawings','Bar arrangement and restraint checked']],
+      ['REINFORCEMENT','Cover, laps and anchorage checked','Verify specified cover, spacers, lap locations and anchorage details.', ['Specified cover and spacers checked','Lap locations checked against details','End anchorage and development details checked']],
+      ['PRE-POUR READINESS','Embedded items and pour area ready','Check specified sleeves or inserts, remove debris or standing water, and record required approvals.', ['Specified sleeves and inserts checked','Beam and formwork are clean','Required inspection approvals recorded']],
     ],
     Detailed: [
-      ['DRAWING','Latest approved beam drawings available','Confirm drawing number and revision against approved documents.'],
-      ['FORMWORK','Beam width, depth and levels verified','Check dimensions, soffit level, top level and alignment.'],
-      ['FORMWORK','Beam formwork supports and bracing checked','Inspect props, bracing, support spacing and stability.'],
-      ['FORMWORK','Beam formwork joints sealed','Check side and soffit joints for grout leakage.'],
-      ['FORMWORK','Beam formwork cleaned','Remove debris, sawdust, binding wire and standing water.'],
-      ['REINFORCEMENT','Top and bottom main bars verified','Check bar diameter, quantity, position and arrangement.'],
-      ['REINFORCEMENT','Stirrups diameter and spacing verified','Check stirrup size, spacing, hooks and positioning.'],
-      ['REINFORCEMENT','Extra bars and support reinforcement checked','Verify additional bars and support reinforcement against drawings.'],
-      ['REINFORCEMENT','Concrete cover and spacers checked','Verify specified cover and stable spacer placement.'],
-      ['REINFORCEMENT','Lap lengths and lap locations checked','Verify lap lengths and locations against approved details.'],
-      ['REINFORCEMENT','Anchorage and development details checked','Verify anchorage, hooks and development details.'],
-      ['CONNECTIONS','Beam-column reinforcement connection checked','Check continuity, anchorage and reinforcement congestion at joints.'],
-      ['EMBEDDED ITEMS','Sleeves and embedded services checked','Verify openings and service locations against coordinated drawings.'],
-      ['CONSTRUCTION JOINTS','Construction joint location checked','Verify joint location and preparation against approved details.'],
-      ['CLEANLINESS','Beam reinforcement and formwork cleaned','Remove loose materials and harmful contamination.'],
-      ['ACCESS','Concrete placement and vibration access checked','Confirm access for concrete placement and proper vibration.'],
-      ['APPROVAL','Required inspection and approvals completed','Record required inspections and approvals before pouring.'],
+      ['DRAWINGS & SET-OUT','Beam layout, dimensions and levels verified','Check the latest approved drawing revision, grid, dimensions and levels.', ['Approved drawing and revision checked','Beam grid, dimensions and levels checked','Beam alignment checked at supports']],
+      ['FORMWORK','Beam formwork aligned, supported and ready','Check beam dimensions, soffit level, supports, bracing, tight joints and cleanliness.', ['Beam width, depth and soffit level checked','Supports and bracing checked','Joints, cleanliness and leakage risk checked']],
+      ['REINFORCEMENT','Beam bars and stirrups verified','Check bar size, quantity, arrangement and stirrup spacing against approved drawings.', ['Top and bottom bar size and quantity checked','Stirrups and spacing checked against drawings','Bar arrangement and restraint checked']],
+      ['REINFORCEMENT','Cover, laps and anchorage checked','Verify specified cover, spacers, lap locations and anchorage details.', ['Specified cover and spacers checked','Lap locations checked against details','End anchorage and development details checked']],
+      ['PRE-POUR READINESS','Embedded items and pour area ready','Check specified sleeves or inserts, remove debris or standing water, and record required approvals.', ['Specified sleeves and inserts checked','Beam and formwork are clean','Required inspection approvals recorded']],
+      ['CONNECTIONS','Beam-column joint reinforcement checked','Verify continuity, anchorage and bar placement at the joint against approved details.', ['Joint bars are continuous as detailed','Anchorage and hooks checked at the joint','Congestion and concrete access reviewed']],
+      ['CONSTRUCTION JOINTS','Joint locations and service openings coordinated','Confirm specified joint preparation and that sleeves or openings do not conflict with reinforcement.', ['Joint location and preparation checked','Sleeves and openings match coordinated drawings','Services do not conflict with reinforcement']],
+      ['PLACEMENT READINESS','Concrete placement and testing ready','Confirm approved mix, sampling arrangements, placing and vibration access, weather precautions and site safety.', ['Approved mix and delivery requirements confirmed','Sampling and testing arrangements ready','Placement access, weather and site safety checked']],
     ],
   },
   Column: {
     Standard: [
-      ['FORMWORK','Column dimensions and position verified','Verify column size and position against approved drawings.'],
-      ['FORMWORK','Column verticality and alignment checked','Check verticality, line and alignment.'],
-      ['FORMWORK','Column formwork stability and bracing checked','Verify tight joints, bracing and stability.'],
-      ['FORMWORK','Formwork is clean and free from debris','Remove debris and unwanted materials before closing.'],
-      ['REINFORCEMENT','Main reinforcement size and number verified','Check bar diameter and number against approved drawings.'],
-      ['REINFORCEMENT','Tie spacing and arrangement checked','Verify tie diameter, spacing and arrangement.'],
-      ['REINFORCEMENT','Concrete cover and spacers checked','Verify specified cover and spacer placement.'],
-      ['REINFORCEMENT','Lap length and anchorage checked','Verify lap length, location and anchorage details.'],
-      ['EMBEDDED ITEMS','Required inserts and embedded items checked','Verify required inserts and embedded items.'],
-      ['APPROVAL','Required inspection and approvals completed','Record required inspections and approvals before pouring.'],
+      ['DRAWINGS & SET-OUT','Column position, dimensions and orientation verified','Check the latest approved drawing revision, grid and column dimensions.', ['Approved drawing and revision checked','Grid, position and orientation checked','Column dimensions checked']],
+      ['FORMWORK','Column formwork plumb, stable and ready','Check alignment, ties, bracing, tight joints and internal cleanliness before closing.', ['Plumb and alignment checked','Ties and bracing checked','Joints and internal cleanliness checked before closing']],
+      ['REINFORCEMENT','Main bars and ties verified','Check bar size, quantity, tie arrangement and spacing against approved drawings.', ['Main bar size and quantity checked','Tie arrangement and spacing checked','Cage position matches approved details']],
+      ['REINFORCEMENT','Cover, laps and anchorage checked','Verify specified cover, spacers, lap locations, anchorage and cage stability.', ['Specified cover and spacers checked','Lap and anchorage details checked','Cage stability checked']],
+      ['PRE-POUR READINESS','Embedded items and column base ready','Check specified inserts, clean the base, and record required inspections and approvals.', ['Specified inserts checked','Column base is clean','Required inspection approvals recorded']],
     ],
     Detailed: [
-      ['DRAWING','Latest approved column drawings available','Confirm drawing number and revision against approved documents.'],
-      ['SETTING OUT','Column location and grid position verified','Check column centreline and position against setting-out references.'],
-      ['FORMWORK','Column dimensions and cross-section verified','Check column width, depth and shape against approved drawings.'],
-      ['FORMWORK','Column verticality and alignment checked','Verify plumb, line and alignment before concrete placement.'],
-      ['FORMWORK','Column formwork joints sealed','Check joints for gaps and possible grout leakage.'],
-      ['FORMWORK','Formwork bracing and stability checked','Inspect ties, clamps, supports and bracing.'],
-      ['FORMWORK','Column formwork cleaned internally','Remove debris and standing water before closing.'],
-      ['REINFORCEMENT','Main bar diameter and quantity verified','Check bar diameter, number and arrangement against drawings.'],
-      ['REINFORCEMENT','Tie diameter, spacing and hooks checked','Verify tie size, spacing, hook details and arrangement.'],
-      ['REINFORCEMENT','Lap length and lap location checked','Verify lap length and location against approved details.'],
-      ['REINFORCEMENT','Concrete cover and spacers checked','Verify specified cover and proper spacer placement.'],
-      ['REINFORCEMENT','Column reinforcement alignment checked','Check cage position, verticality and secure binding.'],
-      ['CONNECTIONS','Beam-column joint reinforcement checked','Verify joint reinforcement, anchorage and congestion details.'],
-      ['STARTER BARS','Starter bars and dowels checked','Verify position, projection, spacing and anchorage.'],
-      ['EMBEDDED ITEMS','Required inserts and embedded items checked','Verify embedded items and openings against approved drawings.'],
-      ['CLEANLINESS','Reinforcement and formwork free from contamination','Remove loose materials, mud, oil and other harmful contamination.'],
-      ['ACCESS','Concrete placement and vibration access checked','Confirm access for placing and compacting concrete.'],
-      ['APPROVAL','Required inspection and approvals completed','Record required inspection records and approvals before pouring.'],
+      ['DRAWINGS & SET-OUT','Column position, dimensions and orientation verified','Check the latest approved drawing revision, grid and column dimensions.', ['Approved drawing and revision checked','Grid, position and orientation checked','Column dimensions checked']],
+      ['FORMWORK','Column formwork plumb, stable and ready','Check alignment, ties, bracing, tight joints and internal cleanliness before closing.', ['Plumb and alignment checked','Ties and bracing checked','Joints and internal cleanliness checked before closing']],
+      ['REINFORCEMENT','Main bars and ties verified','Check bar size, quantity, tie arrangement and spacing against approved drawings.', ['Main bar size and quantity checked','Tie arrangement and spacing checked','Cage position matches approved details']],
+      ['REINFORCEMENT','Cover, laps and anchorage checked','Verify specified cover, spacers, lap locations, anchorage and cage stability.', ['Specified cover and spacers checked','Lap and anchorage details checked','Cage stability checked']],
+      ['PRE-POUR READINESS','Embedded items and column base ready','Check specified inserts, clean the base, and record required inspections and approvals.', ['Specified inserts checked','Column base is clean','Required inspection approvals recorded']],
+      ['CONNECTIONS','Column starter bars and beam-column joint checked','Verify starter locations, projections, joint reinforcement and anchorage against details.', ['Starter bar location and projection checked','Joint reinforcement checked against details','Anchorage at the connection checked']],
+      ['FORMWORK','Cleanout access and concrete placement path checked','Confirm the base is clean and provide practical access for placing and compacting concrete.', ['Cleanout opening/access checked before closing','Base is free of debris and standing water','Placing and compaction access is practical']],
+      ['PLACEMENT READINESS','Concrete placement and testing ready','Confirm approved mix, sampling arrangements, placing access, weather precautions and site safety.', ['Approved mix and delivery requirements confirmed','Sampling and testing arrangements ready','Placement access, weather and site safety checked']],
     ],
   },
   Footing: {
     Standard: [
-      ['EXCAVATION','Footing location and dimensions verified','Check location, length, width and depth against approved drawings.'],
-      ['EXCAVATION','Founding level and bearing surface checked','Verify founding level and obtain required ground approval.'],
-      ['BLINDING','Blinding concrete or base preparation checked','Verify specified blinding or base preparation, where required.'],
-      ['FORMWORK','Footing formwork dimensions and alignment checked','Verify dimensions, position, levels and stability.'],
-      ['REINFORCEMENT','Reinforcement size and spacing verified','Check bar diameter, spacing and arrangement.'],
-      ['REINFORCEMENT','Concrete cover and spacers checked','Verify specified cover and spacer placement.'],
-      ['REINFORCEMENT','Column starter bars and anchorage checked','Verify starter bar position, projection and anchorage.'],
-      ['EMBEDDED ITEMS','Sleeves and embedded items checked','Verify required sleeves and embedded items, where applicable.'],
-      ['CLEANLINESS','Footing base and formwork cleaned','Remove loose soil, debris and standing water.'],
-      ['APPROVAL','Required inspection and approvals completed','Record required inspections and approvals before pouring.'],
+      ['DRAWINGS & SET-OUT','Footing location, dimensions and levels verified','Check the latest approved drawing revision, grid, dimensions and founding level.', ['Approved drawing and revision checked','Grid and footing dimensions checked','Founding level checked']],
+      ['FOUNDATION PREPARATION','Bearing surface and base preparation approved','Check founding material, remove loose soil or water, and verify specified blinding where applicable.', ['Founding material accepted by the responsible person','Loose material and standing water removed','Specified blinding checked where applicable']],
+      ['REINFORCEMENT','Footing reinforcement arrangement verified','Check bar size, quantity, spacing and position against approved drawings.', ['Bar size and reinforcement quantity checked','Spacing and bar direction checked','Position checked against approved drawings']],
+      ['REINFORCEMENT','Cover, supports, laps and starter bars checked','Verify specified cover, spacers, lap locations, anchorage and starter bars.', ['Specified cover and supports checked','Lap and anchorage details checked','Starter bars match approved details']],
+      ['PRE-POUR READINESS','Formwork and embedded items ready','Check required forms and inserts, remove debris or standing water, and record required approvals.', ['Required formwork and inserts checked','Base is clean and free of standing water','Required inspection approvals recorded']],
     ],
     Detailed: [
-      ['DRAWING','Latest approved foundation drawings available','Confirm drawing number and revision against approved documents.'],
-      ['SETTING OUT','Footing location and dimensions verified','Check grid, centreline, length, width and depth against drawings.'],
-      ['EXCAVATION','Excavation depth and founding level checked','Verify excavation depth and founding level against approved details.'],
-      ['EXCAVATION','Bearing surface condition inspected','Check bearing surface and obtain required geotechnical or engineer approval.'],
-      ['EXCAVATION','Excavation base free from loose soil and water','Remove loose soil, debris and standing water.'],
-      ['BLINDING','Blinding concrete or base preparation checked','Verify specified thickness, level and condition where required.'],
-      ['FORMWORK','Footing formwork dimensions and levels verified','Check dimensions, position, levels and stability.'],
-      ['FORMWORK','Formwork joints and supports checked','Verify tight joints, bracing and support stability.'],
-      ['REINFORCEMENT','Bottom reinforcement diameter and spacing verified','Check bar diameter, spacing and arrangement against drawings.'],
-      ['REINFORCEMENT','Top reinforcement checked where specified','Verify additional or top reinforcement where shown in drawings.'],
-      ['REINFORCEMENT','Concrete cover and spacers checked','Verify specified cover and stable spacer placement.'],
-      ['REINFORCEMENT','Lap lengths and anchorage checked','Verify lap lengths, hooks and anchorage details.'],
-      ['STARTER BARS','Column starter bars position and projection checked','Verify position, spacing, projection and anchorage.'],
-      ['STARTER BARS','Starter bars secured and aligned','Check verticality, binding and stability before pouring.'],
-      ['EMBEDDED ITEMS','Sleeves and embedded items checked','Verify locations and sizes where required by approved drawings.'],
-      ['CLEANLINESS','Footing base and reinforcement cleaned','Remove loose soil, mud, debris and harmful contamination.'],
-      ['ACCESS','Concrete placement and vibration access checked','Confirm access for placing and compacting concrete.'],
-      ['APPROVAL','Required inspection and approvals completed','Record required inspections and approvals before pouring.'],
+      ['DRAWINGS & SET-OUT','Footing location, dimensions and levels verified','Check the latest approved drawing revision, grid, dimensions and founding level.', ['Approved drawing and revision checked','Grid and footing dimensions checked','Founding level checked']],
+      ['FOUNDATION PREPARATION','Bearing surface and base preparation approved','Check founding material, remove loose soil or water, and verify specified blinding where applicable.', ['Founding material accepted by the responsible person','Loose material and standing water removed','Specified blinding checked where applicable']],
+      ['REINFORCEMENT','Footing reinforcement arrangement verified','Check bar size, quantity, spacing and position against approved drawings.', ['Bar size and reinforcement quantity checked','Spacing and bar direction checked','Position checked against approved drawings']],
+      ['REINFORCEMENT','Cover, supports, laps and starter bars checked','Verify specified cover, spacers, lap locations, anchorage and starter bars.', ['Specified cover and supports checked','Lap and anchorage details checked','Starter bars match approved details']],
+      ['PRE-POUR READINESS','Formwork and embedded items ready','Check required forms and inserts, remove debris or standing water, and record required approvals.', ['Required formwork and inserts checked','Base is clean and free of standing water','Required inspection approvals recorded']],
+      ['REINFORCEMENT','Pedestal, top bars and local reinforcement checked','Verify pedestal or column connection bars, top reinforcement and local details where specified.', ['Pedestal or column connection bars checked','Top reinforcement checked where specified','Local reinforcement matches approved details']],
+      ['FOUNDATION DETAILS','Construction joints and water control checked','Confirm joint, waterstop, dewatering and waterproofing details where specified.', ['Joint locations checked where specified','Waterstop and waterproofing details checked','Dewatering plan is ready where required']],
+      ['PLACEMENT READINESS','Concrete placement and testing ready','Confirm approved mix, sampling arrangements, placing and vibration access, weather precautions and site safety.', ['Approved mix and delivery requirements confirmed','Sampling and testing arrangements ready','Placement access, weather and site safety checked']],
     ],
   },
 }
 
 const keyOf = (el, level) => `${el}-${level}`
-const makeInspectionId = () => `active-inspection-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+const inspectionDraftKey = (inspectionInstanceId, templateId) => `inspection:${inspectionInstanceId}:${templateId}`
+const makeInspectionId = () => createId('active-inspection')
 const localDate = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 function makeItems(el, level = 'Standard') {
   return (T[el]?.[level] || T.Slab.Standard).map((r, i) => ({
-    id: `${el}-${level}-${i + 1}`, category: r[0], requirement: r[1], criteria: r[2],
-    status: 'Pending', remarks: '', correctiveAction: '',
+    ...normalizeItem({
+      id: `${el}-${level}-${i + 1}`, category: r[0], requirement: r[1], criteria: r[2], status: 'Pending',
+      subChecks: (r[3] || []).map((label, index) => ({ id: `${el}-${level}-${i + 1}-check-${index + 1}`, label, checked: false })),
+    }),
   }))
 }
 function normalizeItems(list, el = 'Slab') {
   if (!Array.isArray(list)) return makeItems(el)
-  const usedIds = new Set()
-  return list.map((x, i) => {
-    let id = typeof x?.id === 'string' && x.id.trim() ? x.id.trim() : `item-${Date.now()}-${i}`
-    while (usedIds.has(id)) id = `item-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`
-    usedIds.add(id)
-    return {
-      id, category: x?.category || 'GENERAL', requirement: x?.requirement || '',
-      criteria: x?.criteria || '', status: STATUSES.includes(x?.status) ? x.status : 'Pending',
-      remarks: x?.remarks || '', correctiveAction: x?.correctiveAction || '',
-    }
-  })
+  return normalizeSchemaItems(list, `${el}-item`)
 }
 function cleanTemplateItems(list, el = 'Slab', templateId = `${el}-template`) {
-  return normalizeItems(list, el).map((item, i) => ({
-    ...item, id: `${templateId}-item-${i + 1}`, status: 'Pending', remarks: '', correctiveAction: '',
-  }))
+  return cleanSchemaTemplateItems(normalizeItems(list, el), `${templateId}-item`)
 }
 function saveRecoveryCopy(raw) {
   const baseKey = `${STORAGE_RECOVERY_KEY}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
@@ -194,7 +165,7 @@ function saveRecoveryCopy(raw) {
 }
 function snapshotInspection(data) {
   return {
-    id: `inspection-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id: createId('history'),
     inspectionInstanceId: data.inspectionInstanceId,
     savedAt: new Date().toISOString(), project: data.project, element: data.element,
     level: data.level, location: data.location, drawing: data.drawing, revision: data.revision,
@@ -208,6 +179,7 @@ function initialData() {
   storageLoadWarning = ''
   storageLoadBlocked = false
   unreadableStorageBackup = null
+  pendingMigrationBackup = null
   const templates = {}
   ELEMENTS.forEach(el => LEVELS.forEach(level => { templates[keyOf(el, level)] = makeItems(el, level) }))
   const base = {
@@ -236,41 +208,10 @@ function initialData() {
       storageLoadWarning = `Saved data version ${savedVersion} is newer than this application. It has been preserved and will not be overwritten.`
       return base
     }
-    const el = ELEMENTS.includes(saved.element) ? saved.element : 'Slab'
-    const level = LEVELS.includes(saved.level) ? saved.level : 'Standard'
-    const merged = { ...templates, ...(saved.templates || {}) }
-    // Migrate old format templates stored under element-only keys.
-    ELEMENTS.forEach(name => {
-      if (Array.isArray(saved.templates?.[name]) && !saved.templates?.[keyOf(name, 'Standard')]) {
-        merged[keyOf(name, 'Standard')] = normalizeItems(saved.templates[name], name)
-      }
-    })
-    if (Array.isArray(saved.items)) merged[keyOf(el, level)] = normalizeItems(saved.items, el)
-    Object.keys(merged).forEach(k => { merged[k] = normalizeItems(merged[k], k.split('-')[0]) })
-    const customs = Array.isArray(saved.customTemplates) ? saved.customTemplates.map((t, i) => ({
-      id: t.id || `custom-old-${i}`, name: t.name || 'Custom template',
-      element: ELEMENTS.includes(t.element) ? t.element : 'Slab',
-      items: cleanTemplateItems(t.items, ELEMENTS.includes(t.element) ? t.element : 'Slab', t.id || `custom-old-${i}`),
-    })) : []
-    const selectedCustom = customs.find(t => t.id === saved.selectedTemplateId)
-    const savedDrafts = saved.inspectionDrafts && typeof saved.inspectionDrafts === 'object' && !Array.isArray(saved.inspectionDrafts)
-      ? saved.inspectionDrafts
-      : {}
-    return {
-      ...base, ...saved, storageVersion: STORAGE_VERSION, templates: merged, customTemplates: customs,
-      inspectionDrafts: Object.fromEntries(Object.entries(savedDrafts).map(([id, list]) => [id, normalizeItems(list)])),
-      inspectionInstanceId: typeof saved.inspectionInstanceId === 'string' && saved.inspectionInstanceId.trim()
-        ? saved.inspectionInstanceId
-        : base.inspectionInstanceId,
-      inspectionHistory: Array.isArray(saved.inspectionHistory) ? saved.inspectionHistory : [],
-      element: selectedCustom ? selectedCustom.element : el,
-      level: selectedCustom ? 'Custom' : level,
-      selectedTemplateId: selectedCustom ? selectedCustom.id : keyOf(el, level),
-      items: selectedCustom
-        ? normalizeItems(savedDrafts[selectedCustom.id] || saved.items || selectedCustom.items, selectedCustom.element)
-        : merged[keyOf(el, level)],
-      reportDesign: DESIGNS.includes(saved.reportDesign) ? saved.reportDesign : 'Professional',
-    }
+    const migrated = migrateInspectionData(saved, base, keyOf)
+    if (savedVersion < STORAGE_VERSION && raw) pendingMigrationBackup = raw
+    const activeDraft = migrated.inspectionDrafts?.[inspectionDraftKey(migrated.inspectionInstanceId, migrated.selectedTemplateId)]
+    return Array.isArray(activeDraft) ? { ...migrated, items: activeDraft } : migrated
   } catch (error) {
     if (raw) unreadableStorageBackup = raw
     storageLoadWarning = error?.message || 'Saved inspection data could not be read.'
@@ -280,23 +221,99 @@ function initialData() {
 
 export default function App() {
   const [data, setData] = useState(initialData)
+  const isMobileLayout = useSyncExternalStore(subscribeToMobileLayout, getMobileLayoutSnapshot, getMobileLayoutServerSnapshot)
+  const [showProjectDetails, setShowProjectDetails] = useState(false)
+  const [showTemplateSettings, setShowTemplateSettings] = useState(false)
   const [saveMessage, setSaveMessage] = useState(() => storageLoadWarning ? `Save Failed — ${storageLoadWarning}` : 'Saved')
   const [newTemplateName, setNewTemplateName] = useState('')
   const [showCriteria, setShowCriteria] = useState(true)
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [showHistory, setShowHistory] = useState(false)
+  const [selectedItemId, setSelectedItemId] = useState(null)
+  const [backupMessage, setBackupMessage] = useState('')
+  const [reportPhotos, setReportPhotos] = useState({})
+  const [printSnapshot, setPrintSnapshot] = useState(null)
+  const [printReady, setPrintReady] = useState(false)
+  const reportPhotoUrls = useRef([])
   const initialDataRef = useRef(data)
   const { project, element, level, location, drawing, revision, inspector, date, contractor,
-    engineer, reportDesign, selectedTemplateId, templates, customTemplates, items } = data
+    engineer, reportDesign, selectedTemplateId, customTemplates, items } = data
+
+  useEffect(() => () => reportPhotoUrls.current.forEach(revokePhotoUrl), [])
+
+  useEffect(() => {
+    if (!printReady) return undefined
+    let active = true
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(async () => {
+        const images = [...document.querySelectorAll('.print-report img')]
+        await Promise.all(images.map(image => {
+          if (image.complete) return Promise.resolve()
+          return new Promise(resolve => {
+            image.addEventListener('load', resolve, { once: true })
+            image.addEventListener('error', resolve, { once: true })
+          })
+        }))
+        if (active) window.print()
+      })
+    })
+    const finishPrint = () => {
+      setPrintReady(false)
+      setPrintSnapshot(null)
+      reportPhotoUrls.current.forEach(revokePhotoUrl)
+      reportPhotoUrls.current = []
+      setReportPhotos({})
+    }
+    window.addEventListener('afterprint', finishPrint)
+    return () => {
+      active = false
+      cancelAnimationFrame(frame)
+      window.removeEventListener('afterprint', finishPrint)
+    }
+  }, [printReady])
+
+  async function exportBackup() {
+    try {
+      setBackupMessage('Preparing local backup…')
+      const bundle = await createBackup(data)
+      const url = URL.createObjectURL(new Blob([JSON.stringify(bundle)], { type: 'application/json' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `concretecheck-backup-${localDate()}.ccbackup`
+      link.click()
+      URL.revokeObjectURL(url)
+      setBackupMessage(`Backup ready · ${bundle.manifest.photoCount} photos included`)
+    } catch (error) { setBackupMessage(`Backup failed: ${error.message}`) }
+  }
+  async function restoreBackup(file) {
+    if (!file) return
+    let currentRaw = null
+    try {
+      const bundle = await parseBackup(file)
+      const summary = `${bundle.data.items.length} active items, ${bundle.data.inspectionHistory?.length || 0} history records and ${bundle.photos.length} photos`
+      if (!window.confirm(`Restore this ConcreteCheck backup?\n\n${summary}\n\nCurrent data will be replaced. A recovery copy will be preserved first.`)) return
+      currentRaw = localStorage.getItem(STORAGE_KEY)
+      if (currentRaw) saveRecoveryCopy(currentRaw)
+      const restored = await importBackup(bundle)
+      const serialized = JSON.stringify(restored)
+      try {
+        localStorage.setItem(STORAGE_KEY, serialized)
+        if (JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')?.storageVersion !== STORAGE_VERSION) throw new Error('Restored data verification failed.')
+      } catch (error) {
+        if (currentRaw !== null) localStorage.setItem(STORAGE_KEY, currentRaw)
+        throw error
+      }
+      setData(restored)
+      setBackupMessage('Backup restored successfully. A recovery copy of the previous data was saved.')
+    } catch (error) { setBackupMessage(`Restore failed: ${error.message}`) }
+  }
 
   useEffect(() => {
     if (storageLoadWarning && data === initialDataRef.current) {
-      setSaveMessage(`Save Failed — ${storageLoadWarning}`)
       return
     }
     if (storageLoadBlocked) {
-      setSaveMessage(`Save Failed — ${storageLoadWarning}`)
       return
     }
     setSaveMessage('Saving…')
@@ -304,14 +321,16 @@ export default function App() {
     const saveNow = () => {
       if (snapshotSaved) return true
       try {
-        const hasRecoveryCopy = Boolean(unreadableStorageBackup)
-        if (unreadableStorageBackup) {
-          saveRecoveryCopy(unreadableStorageBackup)
-          unreadableStorageBackup = null
-        }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, storageVersion: STORAGE_VERSION }))
+        const backupRaw = unreadableStorageBackup || pendingMigrationBackup
+        if (backupRaw) saveRecoveryCopy(backupRaw)
+        const serialized = JSON.stringify({ ...data, storageVersion: STORAGE_VERSION })
+        localStorage.setItem(STORAGE_KEY, serialized)
+        const verified = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')
+        if (!verified || verified.storageVersion !== STORAGE_VERSION || !Array.isArray(verified.items)) throw new Error('Saved data verification failed.')
+        unreadableStorageBackup = null
+        pendingMigrationBackup = null
         snapshotSaved = true
-        setSaveMessage(hasRecoveryCopy ? 'Saved — recovery copy preserved' : 'Saved')
+        setSaveMessage(backupRaw ? 'Saved — recovery copy preserved' : 'Saved')
         storageLoadWarning = ''
         return true
       } catch {
@@ -340,6 +359,7 @@ export default function App() {
     failed: items.filter(x => x.status === 'Not OK').length,
     pending: items.filter(x => x.status === 'Pending').length,
     na: items.filter(x => x.status === 'N/A').length,
+    openActions: items.reduce((total, item) => total + (item.actions || []).filter(action => action.status !== 'Completed').length, 0),
   }), [items])
   const reviewed = counts.ok + counts.failed + counts.na
   const progress = items.length ? Math.round(reviewed / items.length * 100) : 0
@@ -352,38 +372,104 @@ export default function App() {
   const filteredItems = items
     .map((item, originalIndex) => ({ ...item, originalIndex }))
     .filter(item => (statusFilter === 'All' || item.status === statusFilter)
-      && `${item.category} ${item.requirement} ${item.criteria} ${item.remarks} ${item.correctiveAction}`.toLowerCase().includes(searchText.toLowerCase()))
+      && `${item.category} ${item.requirement} ${item.criteria} ${item.remarks} ${item.notes?.comments || ''} ${(item.actions || []).map(a => `${a.description} ${a.responsiblePerson}`).join(' ')} ${item.correctiveAction}`.toLowerCase().includes(searchText.toLowerCase()))
+  const categoryGroups = useMemo(() => {
+    const grouped = new Map()
+    for (const item of filteredItems) {
+      const label = item.category?.trim() || 'Uncategorized'
+      const key = label.toLocaleLowerCase()
+      if (!grouped.has(key)) grouped.set(key, { key, label, visibleItems: [] })
+      grouped.get(key).visibleItems.push(item)
+    }
+    return [...grouped.values()].map(group => {
+      const categoryItems = items.filter(item => (item.category?.trim() || 'Uncategorized').toLocaleLowerCase() === group.key)
+      const reviewedCount = categoryItems.filter(item => ['OK', 'Not OK', 'N/A'].includes(item.status)).length
+      return { ...group, total: categoryItems.length, reviewed: reviewedCount, progress: categoryItems.length ? Math.round(reviewedCount / categoryItems.length * 100) : 0 }
+    })
+  }, [filteredItems, items])
+  const focusedIndex = items.findIndex(item => item.id === selectedItemId)
+  const focusedItem = focusedIndex >= 0 ? { ...items[focusedIndex], originalIndex: focusedIndex } : null
   const templateOptions = [
     ...ELEMENTS.flatMap(el => LEVELS.map(l => ({ id: keyOf(el, l), label: `${el} — ${l}` }))),
     ...customTemplates.map(t => ({ id: t.id, label: `${t.name} — Custom` })),
   ]
 
   function persistCurrent(s) {
-    if (s.level === 'Custom') {
-      return { ...s, inspectionDrafts: { ...(s.inspectionDrafts || {}), [s.selectedTemplateId]: s.items } }
-    }
-    return { ...s, templates: { ...s.templates, [keyOf(s.element, s.level)]: s.items } }
+    const draftKey = inspectionDraftKey(s.inspectionInstanceId, s.selectedTemplateId)
+    return { ...s, inspectionDrafts: { ...(s.inspectionDrafts || {}), [draftKey]: s.items } }
   }
   function field(name, value) { setData(s => ({ ...s, [name]: value })) }
   function chooseTemplate(id) {
     setData(s => {
       const saved = persistCurrent(s)
       const custom = saved.customTemplates.find(t => t.id === id)
+      const draftKey = inspectionDraftKey(saved.inspectionInstanceId, id)
+      const existingDraft = saved.inspectionDrafts?.[draftKey]
       if (custom) return {
         ...saved, element: custom.element, level: 'Custom', selectedTemplateId: id,
-        items: saved.inspectionDrafts?.[id] || custom.items,
+        items: existingDraft || saved.inspectionDrafts?.[id] || custom.items,
+        inspectionDrafts: { ...(saved.inspectionDrafts || {}), [draftKey]: existingDraft || saved.inspectionDrafts?.[id] || custom.items },
       }
       const [el, lev] = id.split('-')
-      return { ...saved, element: el, level: lev, selectedTemplateId: id, items: saved.templates[id] || makeItems(el, lev) }
+      const items = existingDraft || makeItems(el, lev)
+      return { ...saved, element: el, level: lev, selectedTemplateId: id,
+        inspectionDrafts: { ...(saved.inspectionDrafts || {}), [draftKey]: items }, items }
     })
   }
   function editItem(id, prop, value) {
-    setData(s => persistCurrent({ ...s, items: s.items.map(x => x.id === id ? { ...x, [prop]: value } : x) }))
+    setData(s => persistCurrent({ ...s, items: s.items.map(x => {
+      if (x.id !== id) return x
+      if (prop === 'remarks') return { ...x, remarks: value, notes: { ...(x.notes || {}), observations: value } }
+      if (prop === 'correctiveAction') {
+        const actions = [...(x.actions || [])]
+        if (actions.length) actions[0] = { ...actions[0], description: value }
+        else if (value.trim()) actions.push({ id: createId('action'), description: value, responsiblePerson: '', dueDate: '', status: 'Open' })
+        return { ...x, correctiveAction: value, actions }
+      }
+      return { ...x, [prop]: value }
+    }) }))
+  }
+  function editSubCheck(itemId, subCheckId, checked) {
+    setData(s => persistCurrent({ ...s, items: s.items.map(item => item.id === itemId
+      ? { ...item, subChecks: (item.subChecks || []).map(check => check.id === subCheckId ? { ...check, checked } : check) }
+      : item) }))
+  }
+  function editNotes(id, key, value) {
+    setData(s => persistCurrent({ ...s, items: s.items.map(x => x.id === id ? { ...x, notes: { ...(x.notes || {}), [key]: value }, ...(key === 'observations' ? { remarks: value } : {}) } : x) }))
+  }
+  function addAction(id) {
+    setData(s => persistCurrent({ ...s, items: s.items.map(x => x.id === id ? { ...x, actions: [...(x.actions || []), { id: createId('action'), description: '', responsiblePerson: '', dueDate: '', status: 'Open' }] } : x) }))
+  }
+  function editAction(itemId, actionId, key, value) {
+    setData(s => persistCurrent({ ...s, items: s.items.map(x => x.id === itemId ? { ...x, actions: (x.actions || []).map(a => a.id === actionId ? { ...a, [key]: value } : a), ...(actionId === x.actions?.[0]?.id && key === 'description' ? { correctiveAction: value } : {}) } : x) }))
+  }
+  function removeAction(itemId, actionId) {
+    setData(s => persistCurrent({ ...s, items: s.items.map(x => x.id === itemId ? { ...x, actions: (x.actions || []).filter(a => a.id !== actionId), correctiveAction: x.actions?.[0]?.id === actionId ? (x.actions?.[1]?.description || '') : x.correctiveAction } : x) }))
+  }
+  async function addEvidence(itemId, file, evidenceType = 'General Inspection') {
+    try {
+      setSaveMessage('Saving evidence…')
+      const photo = await preparePhoto(file, { inspectionInstanceId: data.inspectionInstanceId, itemId, evidenceType })
+      await putPhoto(photo)
+      setData(s => persistCurrent({ ...s, items: s.items.map(item => item.id === itemId
+        ? { ...item, mediaIds: [...new Set([...(item.mediaIds || []), photo.id])] }
+        : item) }))
+    } catch (error) { setSaveMessage(`Save Failed — photo was not attached: ${error.message}`); window.alert(`Could not add photo: ${error.message}`) }
+  }
+  async function removeEvidence(itemId, photoId) {
+    if (!window.confirm('Remove this photo from the checklist item?')) return
+    const item = data.items.find(x => x.id === itemId)
+    const nextIds = (item?.mediaIds || []).filter(id => id !== photoId)
+    editItem(itemId, 'mediaIds', nextIds)
+    const references = collectMediaIds({ ...data, items: data.items.map(x => x.id === itemId ? { ...x, mediaIds: nextIds } : x) })
+    if (!references.has(photoId)) { try { await deletePhoto(photoId) } catch (error) { setSaveMessage(`Save Failed — ${error.message}`) } }
+  }
+  function editEvidence(photoId, key, value) {
+    getPhoto(photoId).then(photo => photo && putPhoto({ ...photo, [key]: value })).catch(error => setSaveMessage(`Save Failed — ${error.message}`))
   }
   function addItem() {
     setData(s => persistCurrent({ ...s, items: [...s.items, {
-      id: `custom-item-${Date.now()}`, category: 'GENERAL', requirement: '', criteria: '',
-      status: 'Pending', remarks: '', correctiveAction: '',
+      ...normalizeItem({ id: createId('custom-item'), category: 'GENERAL', requirement: '', criteria: '', status: 'Pending' }),
     }] }))
   }
   function removeItem(id) {
@@ -391,7 +477,7 @@ export default function App() {
     setData(s => persistCurrent({ ...s, items: s.items.filter(x => x.id !== id) }))
   }
   function createTemplateFromSource(sourceItems, state, name) {
-    const id = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const id = createId('custom')
     const items = cleanTemplateItems(sourceItems, state.element, id)
     const custom = { id, name, element: state.element, items }
     return {
@@ -442,10 +528,7 @@ export default function App() {
   function archiveCurrent(s) {
     const inspectionInstanceId = s.inspectionInstanceId || makeInspectionId()
     const record = snapshotInspection({ ...s, inspectionInstanceId })
-    const history = s.inspectionHistory || []
-    const alreadyArchived = history.some(existing => (existing.inspectionInstanceId || existing.id) === inspectionInstanceId)
-    if (alreadyArchived) return s
-    return { ...s, inspectionInstanceId, inspectionHistory: [record, ...history] }
+    return archiveSnapshot({ ...s, inspectionInstanceId }, record)
   }
   function archiveInspection() {
     setData(s => archiveCurrent(persistCurrent(s)))
@@ -463,17 +546,16 @@ export default function App() {
     if (!window.confirm('Archive this inspection and start a new one? Project, element, location, drawing number and revision, inspector, contractor, engineer, report design, and selected template will be retained. The inspection date will be set to today, and every checklist status, remark, and corrective action will be reset.')) return
     setSearchText('')
     setStatusFilter('All')
-    const nextInspectionInstanceId = makeInspectionId()
+      const nextInspectionInstanceId = makeInspectionId()
     setData(s => {
       const archived = archiveCurrent(persistCurrent(s))
       const fresh = s.level === 'Custom'
         ? (s.customTemplates.find(t => t.id === s.selectedTemplateId)?.items || makeItems(s.element, 'Standard'))
-        : (s.templates[keyOf(s.element, s.level)] || makeItems(s.element, s.level))
+        : makeItems(s.element, s.level)
       const reset = cleanTemplateItems(fresh, s.element, `${s.selectedTemplateId}-inspection-${Date.now()}`)
-      const next = { ...archived, inspectionInstanceId: nextInspectionInstanceId, date: localDate(), items: reset }
-      return s.level === 'Custom'
-        ? { ...next, inspectionDrafts: { ...(next.inspectionDrafts || {}), [s.selectedTemplateId]: reset } }
-        : { ...next, templates: { ...next.templates, [keyOf(s.element, s.level)]: reset } }
+      const nextDraftKey = inspectionDraftKey(nextInspectionInstanceId, s.selectedTemplateId)
+      return { ...archived, inspectionInstanceId: nextInspectionInstanceId, date: localDate(), items: reset,
+        inspectionDrafts: { ...(archived.inspectionDrafts || {}), [nextDraftKey]: reset } }
     })
   }
   function restoreInspection(selectedRecord, recordIndex) {
@@ -495,56 +577,119 @@ export default function App() {
         }
         selectedTemplateId = custom.id
       }
-      const drafts = { ...(s.inspectionDrafts || {}) }
-      if (safeLevel === 'Custom') drafts[selectedTemplateId] = normalizeItems(record.items, safeElement)
+      const restored = makeRestoredInspection(record, normalizeItems)
+      const drafts = { ...(s.inspectionDrafts || {}),
+        [inspectionDraftKey(restored.inspectionInstanceId, selectedTemplateId)]: restored.items }
+      if (safeLevel === 'Custom') drafts[selectedTemplateId] = restored.items
       return { ...s, project: record.project || '', element: safeElement, level: safeLevel,
         location: record.location || '', drawing: record.drawing || '', revision: record.revision || '',
         inspector: record.inspector || '', date: record.date || localDate(), contractor: record.contractor || '',
         engineer: record.engineer || '', reportDesign: DESIGNS.includes(record.reportDesign) ? record.reportDesign : 'Professional',
-        inspectionInstanceId: record.inspectionInstanceId || record.id || makeInspectionId(),
+        inspectionInstanceId: restored.inspectionInstanceId,
         selectedTemplateId, customTemplates: customTemplatesNext, inspectionDrafts: drafts,
-        items: normalizeItems(record.items, safeElement) }
+        items: restored.items }
     })
     setShowHistory(false)
   }
   function updateCustomTemplate() {
     if (level !== 'Custom') return
     if (!window.confirm('Update this custom template with the current checklist wording? Statuses, remarks and corrective actions will not be saved.')) return
-    setData(s => ({ ...s, customTemplates: s.customTemplates.map(t => t.id === s.selectedTemplateId
-      ? { ...t, element: s.element, items: cleanTemplateItems(s.items, s.element, t.id) } : t) }))
+    setData(s => {
+      const templateItems = cleanTemplateItems(s.items, s.element, s.selectedTemplateId)
+      return { ...s,
+        customTemplates: s.customTemplates.map(t => t.id === s.selectedTemplateId ? { ...t, element: s.element, items: templateItems } : t),
+        inspectionDrafts: { ...(s.inspectionDrafts || {}), [s.selectedTemplateId]: s.items },
+      }
+    })
   }
-  function printReport() { window.print() }
+  async function printReport() {
+    const snapshot = data
+    try {
+      const itemPhotoIds = [...new Set(snapshot.items.flatMap(item => item.mediaIds || []))]
+      const photos = await getPhotos(itemPhotoIds)
+      reportPhotoUrls.current.forEach(revokePhotoUrl)
+      const mapped = Object.fromEntries(photos.map(photo => [photo.id, {
+        ...photo,
+        printUrl: createPhotoUrl(photo.printBlob || photo.originalBlob),
+      }]))
+      reportPhotoUrls.current = Object.values(mapped).map(photo => photo.printUrl)
+      setPrintSnapshot(snapshot)
+      setReportPhotos(mapped)
+      setPrintReady(true)
+    } catch (error) {
+      setBackupMessage(`Some evidence could not be prepared for printing: ${error.message}`)
+      setPrintSnapshot(snapshot)
+      setReportPhotos({})
+      setPrintReady(true)
+    }
+  }
 
-  const failedItems = items.map((x, i) => ({ ...x, number: i + 1 })).filter(x => x.status === 'Not OK')
-  const checklistNumber = counts.failed ? 4 : 3
-  const signoffNumber = checklistNumber + 1
+  const reportData = printSnapshot || data
+  const reportItems = reportData.items
+  const reportCounts = {
+    ok: reportItems.filter(item => item.status === 'OK').length,
+    failed: reportItems.filter(item => item.status === 'Not OK').length,
+    pending: reportItems.filter(item => item.status === 'Pending').length,
+    na: reportItems.filter(item => item.status === 'N/A').length,
+  }
+  const reportProgress = reportItems.length
+    ? Math.round((reportCounts.ok + reportCounts.failed + reportCounts.na) / reportItems.length * 100)
+    : 0
+  const reportChecklistGroups = reportItems.reduce((groups, item, index) => {
+    const category = String(item.category || 'GENERAL').toUpperCase()
+    let group = groups[groups.length - 1]
+    if (!group || group.category !== category) {
+      group = { category, items: [] }
+      groups.push(group)
+    }
+    group.items.push({ item, index })
+    return groups
+  }, [])
+  const reportEvidenceItems = reportItems.map((item, index) => {
+    const observation = String(item.notes?.observations || item.remarks || '').trim()
+    const comments = String(item.notes?.comments || '').trim()
+    const actions = (item.actions || []).filter(action => [action.description, action.responsiblePerson, action.dueDate].some(value => String(value || '').trim()))
+    const legacyAction = !actions.length ? String(item.correctiveAction || '').trim() : ''
+    const photoIds = item.mediaIds || []
+    return { item, index, observation, comments, actions, legacyAction, photoIds }
+  }).filter(entry => entry.observation || entry.comments || entry.actions.length || entry.legacyAction || entry.photoIds.length)
+  const reportChecklistNumber = 3
+  const reportEvidenceNumber = reportChecklistNumber + 1
+  const reportSignoffNumber = reportEvidenceNumber + 1
+  const reportElement = reportData.element
+  const reportLayout = reportData.reportDesign
+  const reportTemplateName = reportData.level === 'Custom'
+    ? reportData.customTemplates.find(template => template.id === reportData.selectedTemplateId)?.name || 'Custom template'
+    : `${reportElement} ${reportData.level}`
+  const reportDateText = reportData.date ? new Date(`${reportData.date}T00:00:00`).toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  }) : 'Not specified'
 
   return <>
     <div className="screen-only">
       <div className="app-shell">
         <header className="topbar">
-          <div className="brand"><div className="brand-icon">CC</div><div><strong>ConcreteCheck</strong><span>Pre-Pour Inspection</span></div></div>
+          <div className="brand"><div className="brand-icon" role="img" aria-label="ConcreteCheck structural concrete block with verification checkmark"><svg viewBox="0 0 48 48" focusable="false" aria-hidden="true"><path className="logo-structure" d="M6 12 24 5l18 7v23l-18 8-18-8V12Z" /><path className="logo-face" d="m6 12 18 8 18-8M24 20v23" /><path className="logo-check" d="m15 26 6 6 13-14" /></svg></div><div className="brand-copy"><strong>ConcreteCheck</strong><span>Concrete Pre-Pour Inspection</span></div></div>
           <div className="topbar-actions"><span className="draft-label">{saveMessage}</span><button className="primary-button" onClick={printReport}>Export report</button></div>
         </header>
         <main className="main-content">
-          <section className="hero"><div><p className="eyebrow">SMART PRE-POUR INSPECTION BUILDER</p><h1>Concrete Pre-Pour Checklist</h1><p className="hero-description">Create, customize and download professional concrete inspection reports.</p></div></section>
-
-          <section className="overview-grid">
-            <div className="overview-card"><span>Total items</span><strong>{items.length}</strong></div>
-            <div className="overview-card"><span>OK</span><strong>{counts.ok}</strong></div>
-            <div className="overview-card"><span>Not OK</span><strong>{counts.failed}</strong></div>
-            <div className="overview-card"><span>Pending</span><strong>{counts.pending}</strong></div>
+          <section className="current-project-summary" aria-labelledby="current-project-heading">
+            <div className="project-summary-copy"><span className="summary-kicker">CURRENT PROJECT</span><h1 id="current-project-heading">{project.trim() || 'Project details not entered'}</h1><p>{project.trim() ? `${element} inspection · ${dateText}` : 'Add project details before recording this inspection.'}</p></div>
+            <button type="button" className="setup-shortcut" onClick={() => { setShowProjectDetails(true); document.getElementById('project-setup-area')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>{project.trim() ? 'Edit project details' : 'Enter project details'}</button>
+            <dl className="project-summary-facts"><div><dt>Structural element</dt><dd>{element}</dd></div><div><dt>Location / Grid</dt><dd>{location.trim() || 'Not specified'}</dd></div><div><dt>Inspection date</dt><dd>{dateText}</dd></div>{drawing.trim() && <div><dt>Drawing</dt><dd>{drawing}{revision.trim() ? ` · ${revision}` : ''}</dd></div>}{inspector.trim() && <div><dt>Inspector</dt><dd>{inspector}</dd></div>}</dl>
           </section>
 
-          <section className="panel progress-panel">
-            <div className="section-heading"><div><h2>Inspection progress</h2><p>{reviewed} of {items.length} items reviewed (OK, Not OK or N/A)</p></div><strong>{progress}%</strong></div>
-            <div className="progress-track"><div className="progress-fill" style={{ width: `${progress}%` }} /></div>
-            <div className="legend"><span>● OK: {counts.ok}</span><span>● Not OK: {counts.failed}</span><span>● Pending: {counts.pending}</span><span>● N/A: {counts.na}</span></div>
+          <section className="inspection-overview" aria-label="Inspection overview">
+            <div className="inspection-overview-main"><div className="inspection-progress-block"><div className="inspection-progress-heading"><div><span className="summary-kicker">INSPECTION OVERVIEW</span><h2>Inspection progress</h2></div><strong>{progress}%</strong></div><div className="overview-progress-track" role="progressbar" aria-label="Inspection progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progress}><span style={{ width: `${progress}%` }} /></div><p>{reviewed} of {items.length} items reviewed <span>·</span> {counts.openActions} open corrective actions</p></div>
+              <div className="overview-counts" aria-label="Inspection status counts"><div><strong>{items.length}</strong><span>Total</span></div><div className="overview-count-ok"><strong>{counts.ok}</strong><span>OK</span></div><div className="overview-count-failed"><strong>{counts.failed}</strong><span>Not OK</span></div><div className="overview-count-pending"><strong>{counts.pending}</strong><span>Pending</span></div><div><strong>{counts.na}</strong><span>N/A</span></div><div className="overview-count-actions"><strong>{counts.openActions}</strong><span>Open actions</span></div></div>
+            </div>
+            <div className={`needs-attention${counts.failed ? '' : ' needs-attention-clear'}`}><div className="attention-heading"><h3>Needs attention</h3><span>{counts.failed ? `${counts.failed} item${counts.failed === 1 ? '' : 's'}` : 'Clear'}</span></div>{counts.failed ? <div className="attention-items">{items.map((item, index) => item.status === 'Not OK' ? <button type="button" key={item.id} onClick={() => { if (isMobileLayout) setSelectedItemId(item.id); else document.getElementById(`checklist-item-${item.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }}><span>{String(index + 1).padStart(2, '0')}</span><span className="attention-item-copy"><strong>{item.requirement || 'Untitled inspection item'}</strong><small>{(item.actions || []).filter(action => action.status !== 'Completed').length} corrective actions open · review status and evidence</small></span><b>Review →</b></button> : null)}</div> : <p>No items are currently marked Not OK.</p>}</div>
           </section>
 
+          <section className="project-setup-area" id="project-setup-area"><h2 className="mobile-area-title">Project &amp; Setup</h2>
           <section className="panel">
-            <div className="section-heading"><div><h2>Project information</h2><p>Enter the details for this inspection.</p></div></div>
-            <div className="form-grid">
+            <div className="section-heading"><div><h2>Project information</h2><p>{project.trim() ? `${element} · ${location.trim() || 'Location not specified'} · ${dateText}` : 'Project details are missing. Enter them before recording the inspection.'}</p></div><button className="section-toggle" type="button" aria-expanded={showProjectDetails} aria-controls="project-information-fields" onClick={() => setShowProjectDetails(value => !value)}>{showProjectDetails ? 'Hide details' : project.trim() ? 'Edit details' : 'Enter project details'}</button></div>
+            <div className="form-grid" id="project-information-fields" hidden={!showProjectDetails}>
               <label>Project name<input value={project} onChange={e => field('project', e.target.value)} placeholder="e.g. Residential Apartment Building" /></label>
               <label>Structural element<select value={element} onChange={e => chooseTemplate(keyOf(e.target.value, 'Standard'))}>{ELEMENTS.map(x => <option key={x}>{x}</option>)}</select></label>
               <label>Location / Grid<input value={location} onChange={e => field('location', e.target.value)} placeholder="e.g. Third Floor – Grid A1 to A4" /></label>
@@ -558,7 +703,8 @@ export default function App() {
           </section>
 
           <section className="panel">
-            <div className="section-heading"><div><h2>Checklist template</h2><p>Choose a template, then tailor its items for this inspection.</p></div></div>
+            <div className="section-heading"><div><h2>Checklist template</h2><p>Choose a template, then tailor its items for this inspection.</p></div><button className="section-toggle" type="button" aria-expanded={showTemplateSettings} aria-controls="template-settings" onClick={() => setShowTemplateSettings(value => !value)}>{showTemplateSettings ? 'Hide settings' : 'Show settings'}</button></div>
+            <div id="template-settings" hidden={!showTemplateSettings}>
             <div className="template-controls">
               <label>Template library<select value={selectedTemplateId} onChange={e => chooseTemplate(e.target.value)}>{templateOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
               <label>PDF report design<select value={reportDesign} onChange={e => field('reportDesign', e.target.value)}>{DESIGNS.map(x => <option key={x}>{x}</option>)}</select></label>
@@ -573,70 +719,115 @@ export default function App() {
                 {level === 'Custom' && <button className="danger-button" onClick={deleteTemplate}>Delete custom template</button>}
               </div>
             </div>
+            </div>
+          </section>
           </section>
 
-          <section className="panel checklist-panel">
-            <div className="section-heading checklist-heading"><div><h2>{element} inspection checklist</h2><p>{activeTemplateName} · Showing {filteredItems.length} of {items.length} items</p></div><div className="inline-actions"><button className="secondary-button" onClick={() => setShowHistory(v => !v)}>Inspection history ({data.inspectionHistory.length})</button><button className="secondary-button" onClick={archiveInspection}>Archive inspection</button><button className="secondary-button" onClick={startNewInspection}>Start new inspection</button><button className="primary-button" onClick={addItem}>+ Add item</button></div></div>
-            <div className="checklist-toolbar"><input value={searchText} onChange={e => setSearchText(e.target.value)} placeholder="Search checklist items" /><select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option>All</option>{STATUSES.map(x => <option key={x}>{x}</option>)}</select><label className="checkbox-label"><input type="checkbox" checked={showCriteria} onChange={e => setShowCriteria(e.target.checked)} /> Show acceptance criteria</label></div>
+          <section className="panel checklist-panel" id="checklist-workspace">
+            <div className="section-heading checklist-heading"><div><span className="summary-kicker">MAIN INSPECTION CHECKLIST</span><h2>{element} inspection checklist</h2><p>{activeTemplateName} · Showing {filteredItems.length} of {items.length} items</p></div><div className="inline-actions"><button className="primary-button add-item-action" onClick={addItem}>+ Add item</button><button className="secondary-button archive-action" onClick={archiveInspection}>Archive inspection</button><button className="secondary-button new-inspection-action" onClick={startNewInspection}>Start new inspection</button></div></div>
+            <div className="checklist-toolbar"><input value={searchText} onChange={e => setSearchText(e.target.value)} placeholder="Search checklist items" /><select aria-label="Filter checklist by status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>{FILTER_OPTIONS.map(filter => <option key={filter} value={filter}>{filter}</option>)}</select><label className="checkbox-label"><input type="checkbox" checked={showCriteria} onChange={e => setShowCriteria(e.target.checked)} /> Show acceptance criteria</label></div>
             <div className="checklist-table">
               <div className="table-header"><span>Inspection item</span><span>Status</span><span>Remarks and action</span><span>Remove</span></div>
               {items.length === 0 && <div className="empty-checklist">No checklist items. Select Add item to begin.</div>}
               {items.length > 0 && filteredItems.length === 0 && <div className="empty-checklist">No checklist items match the current search or status filter.</div>}
-              {showHistory && <div className="history-panel">{data.inspectionHistory.length === 0 ? <p>No archived inspections yet.</p> : data.inspectionHistory.map((record, historyIndex) => <div className="history-entry" key={`${record.id}-${historyIndex}`}><span><strong>{record.project || 'Untitled project'}</strong> · {record.element} · {record.templateName} · {record.date || 'No date'}</span><button className="secondary-button" onClick={() => restoreInspection(record, historyIndex)}>Restore</button><button className="danger-button" onClick={() => removeInspection(record, historyIndex)}>Remove</button></div>)}</div>}
-              {filteredItems.map((item) => <div className="checklist-row checklist-row-expanded" key={item.id}>
-                <div className="requirement-cell">
-                  <div className="item-number">{String(item.originalIndex + 1).padStart(2, '0')} · Inspection item</div>
-                  <input aria-label="Category" value={item.category} onChange={e => editItem(item.id, 'category', e.target.value)} placeholder="Category (e.g. FORMWORK)" />
-                  <textarea aria-label="Inspection requirement" value={item.requirement} onChange={e => editItem(item.id, 'requirement', e.target.value)} placeholder="Inspection requirement" rows="2" />
-                  {showCriteria && <textarea aria-label="Acceptance criteria" value={item.criteria} onChange={e => editItem(item.id, 'criteria', e.target.value)} placeholder="Acceptance criteria / inspection reference" rows="2" />}
-                </div>
-                <div className="status-cell"><select className={`status-select status-${item.status.toLowerCase().replace(' ', '-')}`} value={item.status} onChange={e => editItem(item.id, 'status', e.target.value)}>{STATUSES.map(s => <option key={s}>{s}</option>)}</select></div>
-                <div className="checklist-detail-fields">
-                  <textarea value={item.remarks} onChange={e => editItem(item.id, 'remarks', e.target.value)} placeholder="Inspection remarks" rows="2" />
-                  <textarea value={item.correctiveAction} onChange={e => editItem(item.id, 'correctiveAction', e.target.value)} placeholder="Corrective action (if required)" rows="2" />
-                </div>
-                <div className="remove-cell"><button className="danger-button" onClick={() => removeItem(item.id)}>Remove</button></div>
-              </div>)}
+              {categoryGroups.map(group => <section className="category-group" key={group.key}>
+                <header className="category-group-heading"><div><h3>{group.label}</h3><p>{group.reviewed} of {group.total} reviewed · {group.visibleItems.length} shown</p></div><strong>{group.progress}%</strong><div className="category-progress"><span style={{ width: group.progress + '%' }} /></div></header>
+                <div className="category-group-items">{group.visibleItems.map(item => <div className="category-item-pair" id={`checklist-item-${item.id}`} key={item.id}>
+                  <div className="desktop-checklist-item"><ChecklistItemCard
+                    key={item.id} item={item} number={item.originalIndex + 1} showCriteria={showCriteria}
+                    onItemChange={(prop, value) => editItem(item.id, prop, value)}
+                    onSubCheckChange={(subCheckId, checked) => editSubCheck(item.id, subCheckId, checked)}
+                    onNotesChange={(key, value) => editNotes(item.id, key, value)}
+                    onAddAction={() => addAction(item.id)}
+                    onEditAction={(actionId, key, value) => editAction(item.id, actionId, key, value)}
+                    onRemoveAction={actionId => removeAction(item.id, actionId)}
+                    onAddEvidence={file => addEvidence(item.id, file)}
+                    onRemoveEvidence={photoId => removeEvidence(item.id, photoId)}
+                    onEditEvidence={editEvidence} onRemove={() => removeItem(item.id)}
+                  /></div>
+                  <MobileChecklistItem item={item} number={item.originalIndex + 1} showCriteria={showCriteria} onShowCriteria={() => setShowCriteria(true)} onStatusChange={status => editItem(item.id, 'status', status)} onSubCheckChange={(subCheckId, checked) => editSubCheck(item.id, subCheckId, checked)} onOpen={() => setSelectedItemId(item.id)} />
+                </div>)}</div>
+              </section>)}
+
             </div>
           </section>
 
           <section className="panel notice-panel"><strong>Before concrete placement</strong><p>Resolve and re-inspect items marked Not OK. Confirm pending items and required approvals with the responsible engineer before pouring. Use the latest approved drawings and project specifications as the acceptance reference.</p></section>
-          <div className="bottom-actions"><button className="primary-button" onClick={printReport}>Export / Print inspection report</button></div>
+          <section className="tools-area"><h2 className="mobile-area-title">History &amp; Tools</h2>
+            <div className="mobile-history-tools"><button className="secondary-button" type="button" aria-expanded={showHistory} onClick={() => setShowHistory(value => !value)}>Inspection History ({data.inspectionHistory.length})</button>{showHistory && <div className="history-panel">{data.inspectionHistory.length === 0 ? <p>No archived inspections yet.</p> : data.inspectionHistory.map((record, historyIndex) => <div className="history-entry" key={record.id + '-' + historyIndex}><span><strong>{record.project || 'Untitled project'}</strong> · {record.element} · {record.templateName} · {record.date || 'No date'}</span><button className="secondary-button" onClick={() => restoreInspection(record, historyIndex)}>Restore</button><button className="danger-button" onClick={() => removeInspection(record, historyIndex)}>Remove</button></div>)}</div>}</div>
+            <section className="panel backup-panel"><div className="section-heading"><div><h2>Reports and backup</h2><p>Backups stay on this device until you download and store them elsewhere.</p></div></div><div className="backup-controls"><button className="secondary-button" type="button" onClick={exportBackup}>Download full backup</button><label className="secondary-button file-button">Restore backup<input type="file" accept=".ccbackup,application/json" onChange={e => restoreBackup(e.target.files?.[0])} /></label><span className="backup-message" role="status">{backupMessage}</span></div></section>
+            <div className="bottom-actions"><button className="primary-button" onClick={printReport}>Export / Print inspection report</button></div>
+          </section>
+          {isMobileLayout && focusedItem ? (<section className="mobile-inspection-focus" role="dialog" aria-modal="true" aria-labelledby="focused-item-title"><div className="focus-topbar"><button type="button" className="focus-back" onClick={() => setSelectedItemId(null)}>← Checklist</button><span>Item {focusedIndex + 1} of {items.length}</span></div><div className="focus-navigation"><button type="button" disabled={focusedIndex <= 0} onClick={() => setSelectedItemId(items[focusedIndex - 1]?.id)}>← Previous item</button><button type="button" disabled={focusedIndex >= items.length - 1} onClick={() => setSelectedItemId(items[focusedIndex + 1]?.id)}>Next item →</button></div><h2 id="focused-item-title">Full inspection</h2>{!showCriteria && <button type="button" className="focus-show-criteria" onClick={() => setShowCriteria(true)}>Show acceptance criteria</button>}<ChecklistItemCard key={focusedItem.id} item={focusedItem} number={focusedIndex + 1} showCriteria={showCriteria} onItemChange={(prop, value) => editItem(focusedItem.id, prop, value)} onSubCheckChange={(subCheckId, checked) => editSubCheck(focusedItem.id, subCheckId, checked)} onNotesChange={(key, value) => editNotes(focusedItem.id, key, value)} onAddAction={() => addAction(focusedItem.id)} onEditAction={(actionId, key, value) => editAction(focusedItem.id, actionId, key, value)} onRemoveAction={actionId => removeAction(focusedItem.id, actionId)} onAddEvidence={file => addEvidence(focusedItem.id, file)} onRemoveEvidence={photoId => removeEvidence(focusedItem.id, photoId)} onEditEvidence={editEvidence} onRemove={() => removeItem(focusedItem.id)} /></section>) : null}
         </main>
         <footer className="app-footer">ConcreteCheck · A practical pre-pour inspection record</footer>
       </div>
     </div>
 
-    <article className={`print-report print-${reportDesign.toLowerCase()}`}>
+    <article className={`print-report print-${reportLayout.toLowerCase()}`}>
       <header className="print-header"><div className="print-brand">CONCRETECHECK</div><div className="print-document-label">INSPECTION RECORD</div><h1>CONCRETE PRE-POUR INSPECTION REPORT</h1><p>Pre-pour inspection and approval record</p></header>
 
       <section className="print-section"><h2>1. PROJECT INFORMATION</h2><table className="print-info-table"><tbody>
-        <tr><th>Project name</th><td>{project || 'Not specified'}</td><th>Structural element</th><td>{element}</td></tr>
-        <tr><th>Location / Grid</th><td>{location || 'Not specified'}</td><th>Inspection date</th><td>{dateText}</td></tr>
-        <tr><th>Drawing number</th><td>{drawing || 'Not specified'}</td><th>Drawing revision</th><td>{revision || 'Not specified'}</td></tr>
-        <tr><th>Checklist template</th><td>{activeTemplateName}</td><th>Report design</th><td>{reportDesign}</td></tr>
-        <tr><th>Inspector</th><td colSpan="3">{inspector || 'Not specified'}</td></tr>
+        <tr><th>Project name</th><td>{reportData.project || 'Not specified'}</td><th>Structural element</th><td>{reportElement}</td></tr>
+        <tr><th>Location / Grid</th><td>{reportData.location || 'Not specified'}</td><th>Inspection date</th><td>{reportDateText}</td></tr>
+        <tr><th>Drawing number</th><td>{reportData.drawing || 'Not specified'}</td><th>Drawing revision</th><td>{reportData.revision || 'Not specified'}</td></tr>
+        <tr><th>Checklist template</th><td>{reportTemplateName}</td><th>Report design</th><td>{reportLayout}</td></tr>
+        <tr><th>Inspector</th><td colSpan="3">{reportData.inspector || 'Not specified'}</td></tr>
       </tbody></table></section>
 
-      <section className="print-section"><h2>2. INSPECTION SUMMARY</h2><table className="print-summary-table"><thead><tr><th>Total items</th><th>OK</th><th>Not OK</th><th>Pending</th><th>N/A</th><th>Progress</th></tr></thead><tbody><tr><td>{items.length}</td><td>{counts.ok}</td><td>{counts.failed}</td><td>{counts.pending}</td><td>{counts.na}</td><td>{progress}%</td></tr></tbody></table></section>
+      <section className="print-section"><h2>2. INSPECTION SUMMARY</h2><table className="print-summary-table"><thead><tr><th>Total items</th><th>OK</th><th>Not OK</th><th>Pending</th><th>N/A</th><th>Progress</th></tr></thead><tbody><tr><td>{reportItems.length}</td><td>{reportCounts.ok}</td><td>{reportCounts.failed}</td><td>{reportCounts.pending}</td><td>{reportCounts.na}</td><td>{reportProgress}%</td></tr></tbody></table></section>
 
-      {failedItems.length > 0 && <section className="print-section"><h2>3. ITEMS REQUIRING ATTENTION</h2><table className="print-attention-table"><thead><tr><th>No.</th><th>Requirement</th><th>Remarks</th><th>Corrective action</th></tr></thead><tbody>
-        {failedItems.map(x => <tr key={x.id}><td>{String(x.number).padStart(2, '0')}</td><td>{x.requirement || 'Not specified'}</td><td>{x.remarks || 'Not recorded'}</td><td>{x.correctiveAction || 'Not provided'}</td></tr>)}
-      </tbody></table></section>}
-
-      <section className="print-section"><h2>{checklistNumber}. {element.toUpperCase()} INSPECTION CHECKLIST</h2><table className="print-checklist-table"><thead><tr>
-        <th className="print-no">No.</th><th className="print-category">Category</th><th>Inspection requirement{reportDesign === 'Compact' ? ' / criteria' : ''}</th><th className="print-status">Status</th><th>Remarks{reportDesign === 'Compact' ? ' / action' : ' / corrective action'}</th>
+      <section className="print-section print-checklist-section"><h2>{reportChecklistNumber}. {reportElement.toUpperCase()} INSPECTION CHECKLIST</h2><table className="print-checklist-table"><thead><tr>
+        <th className="print-no">No.</th><th>Inspection requirement</th><th className="print-status">Status</th>
       </tr></thead><tbody>
-        {items.map((x, i) => <tr key={x.id}><td>{String(i + 1).padStart(2, '0')}</td><td>{x.category || 'GENERAL'}</td><td><strong>{x.requirement || 'Not specified'}</strong>{x.criteria && <div className="print-criteria">{reportDesign === 'Compact' ? `Criteria: ${x.criteria}` : x.criteria}</div>}</td><td className={`print-status-${x.status.toLowerCase().replace(' ', '-')}`}>{x.status}</td><td><div>{x.remarks || '—'}</div>{x.correctiveAction && <div className="print-corrective-action"><strong>Action:</strong> {x.correctiveAction}</div>}</td></tr>)}
+        {reportChecklistGroups.map(group => <Fragment key={`group-${group.category}-${group.items[0]?.index}`}>
+          <tr className="print-category-heading" key={`category-${group.category}-${group.items[0]?.index}`}><th colSpan="3" scope="rowgroup">{group.category}</th></tr>
+          {group.items.map(({ item, index }) => <tr className={`print-checklist-item print-checklist-item-${String(item.status || 'Pending').toLowerCase().replace(' ', '-')}`} key={item.id}>
+            <td className="print-no">{String(index + 1).padStart(2, '0')}</td>
+            <td className="print-requirement-cell">
+              <strong>{item.requirement || 'Not specified'}</strong>
+              {item.criteria && <div className="print-criteria">{item.criteria}</div>}
+              {item.subChecks?.length > 0 && <ul className="print-subchecks">{item.subChecks.map(check => <li key={check.id}><span className={`print-subcheck-mark${check.checked ? ' is-checked' : ''}`}>{check.checked ? '✓' : ''}</span>{check.label}</li>)}</ul>}
+            </td>
+            <td className={`print-status print-status-${String(item.status || 'Pending').toLowerCase().replace(' ', '-')}`}>{item.status || 'Pending'}</td>
+          </tr>)}
+        </Fragment>)}
       </tbody></table></section>
 
-      <section className="print-section print-signoff-section"><h2>{signoffNumber}. INSPECTION SIGN-OFF</h2><table className="print-sign-table"><thead><tr><th>Inspector</th><th>Contractor representative</th><th>Engineer</th></tr></thead><tbody>
-        <tr><td>{inspector || ' '}</td><td>{contractor || ' '}</td><td>{engineer || ' '}</td></tr>
+      <section className="print-section print-evidence-section"><h2>{reportEvidenceNumber}. PHOTO EVIDENCE REGISTER</h2>{reportEvidenceItems.length > 0 ? <div className="print-evidence-register">
+        {reportEvidenceItems.map(({ item, index, observation, comments, actions, legacyAction, photoIds }) => <article className="print-evidence-entry" key={`evidence-${item.id}`}>
+          <header className="print-evidence-reference"><div><strong>ITEM {String(index + 1).padStart(2, '0')}</strong><span>{item.category || 'GENERAL'}</span></div><p>{item.requirement || 'Not specified'}</p></header>
+          {photoIds.length > 0 && <div className="print-photo-grid">
+            {photoIds.map(id => {
+              const photo = reportPhotos[id]
+              const evidenceType = photo?.evidenceType
+              return <figure className="print-photo" key={id}>
+                {photo ? <img src={photo.printUrl} alt={photo.caption || 'Inspection evidence'} onError={event => {
+                  event.currentTarget.hidden = true
+                  event.currentTarget.parentElement.querySelector('.print-photo-unavailable')?.removeAttribute('hidden')
+                }} /> : <span className="print-photo-unavailable">Photo unavailable</span>}
+                {photo && <figcaption>{photo.caption || 'Inspection evidence'}{(evidenceType === 'Before' || evidenceType === 'After') && <span className="print-photo-type">{evidenceType}</span>}</figcaption>}
+                {photo && <small className="print-photo-unavailable" hidden>Photo unavailable</small>}
+              </figure>
+            })}
+          </div>}
+          {(observation || comments || actions.length > 0 || legacyAction) && <div className="print-evidence-copy">
+            {observation && <p className="print-observation"><strong>Observation:</strong> {observation}</p>}
+            {comments && <p className="print-observation print-observation-comment"><strong>Comment:</strong> {comments}</p>}
+            {actions.map((action, actionIndex) => <p className="print-corrective-action" key={action.id || `${item.id}-action-${actionIndex}`}><strong>Corrective Action{action.status ? ` (${action.status})` : ''}:</strong> {action.description || '—'}{action.responsiblePerson ? ` · Responsible: ${action.responsiblePerson}` : ''}{action.dueDate ? ` · Due: ${action.dueDate}` : ''}</p>)}
+            {legacyAction && <p className="print-corrective-action"><strong>Corrective Action:</strong> {legacyAction}</p>}
+          </div>}
+        </article>)}
+      </div> : <p className="print-evidence-empty">No photo evidence, observations, comments or corrective actions recorded.</p>}</section>
+
+      <section className="print-section print-signoff-section">
+        <section className="print-note"><strong>Inspection note</strong><p>Verify all requirements against the latest approved drawings, project specifications and applicable inspection criteria. This checklist is a recording tool and does not replace project-specific technical approval.</p></section>
+        <h2>{reportSignoffNumber}. INSPECTION SIGN-OFF</h2><table className="print-sign-table"><thead><tr><th>Inspector</th><th>Contractor representative</th><th>Engineer</th></tr></thead><tbody>
+        <tr><td>{reportData.inspector || ' '}</td><td>{reportData.contractor || ' '}</td><td>{reportData.engineer || ' '}</td></tr>
         <tr><td>Signature: __________________</td><td>Signature: __________________</td><td>Signature: __________________</td></tr>
         <tr><td>Date: _______________________</td><td>Date: _______________________</td><td>Date: _______________________</td></tr>
       </tbody></table></section>
 
-      <section className="print-note"><strong>Inspection note</strong><p>Verify all requirements against the latest approved drawings, project specifications and applicable inspection criteria. This checklist is a recording tool and does not replace project-specific technical approval.</p></section>
       <footer className="print-footer">ConcreteCheck · Concrete Pre-Pour Inspection Report</footer>
     </article>
   </>
