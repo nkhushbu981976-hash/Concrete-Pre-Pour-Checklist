@@ -26,6 +26,21 @@ test('migration keeps project, templates and history while upgrading schema vers
   assert.equal(migrated.inspectionHistory[0].items[0].notes.observations, 'Archived note')
 })
 
+test('floor level migrates safely and is preserved in active and archived inspections', () => {
+  const saved = {
+    ...baseState(),
+    floorLevel: 'Fourth Floor',
+    inspectionHistory: [{ id: 'history-floor', floorLevel: 'Basement', items: [] }],
+  }
+  const migrated = migrateInspectionData(saved, baseState(), keyOf)
+  assert.equal(migrated.floorLevel, 'Fourth Floor')
+  assert.equal(migrated.inspectionHistory[0].floorLevel, 'Basement')
+
+  const legacy = migrateInspectionData({ ...baseState(), inspectionHistory: [{ id: 'legacy-history', items: [] }] }, baseState(), keyOf)
+  assert.equal(legacy.floorLevel, '')
+  assert.equal(legacy.inspectionHistory[0].floorLevel, '')
+})
+
 test('template copies reset inspection values and evidence references', () => {
   const [copy] = cleanTemplateItems([{ id: 'source', status: 'Not OK', remarks: 'Keep in inspection', correctiveAction: 'Fix', mediaIds: ['photo-1'], subChecks: [{ id: 's1', label: 'Cover checked', checked: true }] }])
   assert.equal(copy.status, 'Pending')

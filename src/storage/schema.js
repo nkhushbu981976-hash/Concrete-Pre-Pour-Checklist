@@ -122,6 +122,7 @@ export function migrateInspectionData(saved, base, keyOf) {
     inspectionInstanceId: typeof saved.inspectionInstanceId === 'string' && saved.inspectionInstanceId
       ? saved.inspectionInstanceId
       : createId('inspection'),
+    floorLevel: typeof saved.floorLevel === 'string' ? saved.floorLevel : '',
     element: currentElement,
     level: currentLevel,
     selectedTemplateId,
@@ -133,6 +134,7 @@ export function migrateInspectionData(saved, base, keyOf) {
         ...record,
         id: record?.id || createId(`history-${index + 1}`),
         inspectionInstanceId: record?.inspectionInstanceId || record?.id || createId(`restored-inspection-${index + 1}`),
+        floorLevel: typeof record?.floorLevel === 'string' ? record.floorLevel : '',
         items: normalizeItems(record?.items, `history-${index + 1}-item`),
       }))
       : [],

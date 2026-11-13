@@ -31,6 +31,7 @@ const STORAGE_KEY = 'concretecheck-inspection-v1'
 const STORAGE_RECOVERY_KEY = `${STORAGE_KEY}-recovery`
 const ELEMENTS = ['Slab', 'Beam', 'Column', 'Footing']
 const LEVELS = ['Standard', 'Detailed']
+const FLOOR_LEVEL_PRESETS = ['Basement', 'Ground Floor', 'First Floor', 'Second Floor', 'Third Floor', 'Fourth Floor', 'Roof Floor']
 const STATUSES = ['Pending', 'OK', 'Not OK', 'N/A']
 const DESIGNS = ['Professional', 'Detailed', 'Compact']
 const FILTER_OPTIONS = ['All', 'Pending', 'OK', 'Not OK', 'N/A']
@@ -113,82 +114,82 @@ function StructuralIcon({ element }) {
 const T = {
   Slab: {
     Standard: [
-      ['DRAWINGS & SET-OUT','Slab layout, dimensions and levels verified','Check the latest approved drawing revision, grid, openings and levels.', ['Approved drawing and revision checked','Grid, slab dimensions and openings checked','Levels checked against project references']],
-      ['FORMWORK','Slab formwork stable and ready','Check soffit dimensions, level, supports, bracing, tight joints and cleanliness.', ['Soffit dimensions and level checked','Supports and bracing checked','Joints, cleanliness and leakage risk checked']],
-      ['REINFORCEMENT','Slab reinforcement arrangement verified','Check bar size, quantity, spacing and position against approved drawings.', ['Bar size and reinforcement quantity checked','Spacing and bar direction checked','Position checked against approved drawings']],
-      ['REINFORCEMENT','Cover, supports, laps and anchorage checked','Verify specified cover, chairs or spacers, lap locations and anchorage details.', ['Specified cover checked','Chairs and spacers are stable','Lap locations and anchorage checked']],
-      ['PRE-POUR READINESS','Embedded items and pour area ready','Check specified inserts and services, remove debris or standing water, and record required approvals.', ['Specified sleeves, conduits and inserts checked','Pour area is clean and free of standing water','Required inspection approvals recorded']],
-      ['PLACEMENT READINESS','Concrete placement and testing ready','Confirm approved mix, sampling arrangements, placing and vibration access, weather precautions and site safety.', ['Approved mix and delivery requirements confirmed','Sampling and testing arrangements ready','Placement access, weather and site safety checked']],
+      ['DRAWINGS & SET-OUT','Slab layout and levels match approved drawings','Check grid, slab outline, thickness, openings and levels against the latest approved structural drawings.', ['Latest approved drawing and revision checked','Grid, outline, thickness and openings checked','Levels checked against project references']],
+      ['FORMWORK','Slab formwork and supports are stable','Check dimensions, line and level, props, bracing, tight joints, leakage risk and cleanliness.', ['Slab dimensions, line and level checked','Props, supports and bracing are stable','Joints are tight and formwork is clean']],
+      ['REINFORCEMENT','Main and distribution bars are correctly arranged','Compare bar type, diameter, quantity, spacing and position with approved structural drawings.', ['Main and distribution bars checked','Bar size, quantity and spacing checked against drawings','Bar direction and position match details']],
+      ['REINFORCEMENT','Cover, laps and bar supports match approved details','Check specified cover, lap and anchorage locations, chairs, spacers, and top and bottom bar stability.', ['Specified cover and cover blocks checked','Chairs and spacers support the reinforcement','Lap, anchorage and bar stability checked']],
+      ['EMBEDDED ITEMS & JOINTS','Embedded services, openings and joints are coordinated','Check specified conduits, sleeves, inserts, openings, construction joints and waterstops against coordinated approved details.', ['Conduits, sleeves, openings and inserts checked','Specified joints and waterstops checked','Embedded items are secure and clear of reinforcement']],
+      ['PRE-POUR READINESS','Slab is clean and ready for concrete placement','Remove loose wire, debris, oil and standing water; confirm the approved mix, testing plan, placing access, compaction equipment, weather precautions, site safety and required release.', ['Formwork and reinforcement are free of debris and contamination','Approved mix and sampling/testing plan confirmed','Access, compaction equipment, weather and site safety ready']],
     ],
     Detailed: [
-      ['DRAWINGS & SET-OUT','Slab layout, dimensions and levels verified','Check the latest approved drawing revision, grid, openings and levels.', ['Approved drawing and revision checked','Grid, slab dimensions and openings checked','Levels checked against project references']],
-      ['FORMWORK','Slab formwork stable and ready','Check soffit dimensions, level, supports, bracing, tight joints and cleanliness.', ['Soffit dimensions and level checked','Supports and bracing checked','Joints, cleanliness and leakage risk checked']],
-      ['REINFORCEMENT','Slab reinforcement arrangement verified','Check bar size, quantity, spacing and position against approved drawings.', ['Bar size and reinforcement quantity checked','Spacing and bar direction checked','Position checked against approved drawings']],
-      ['REINFORCEMENT','Additional bars around openings and edges checked','Verify trimming bars, support bars and local reinforcement where detailed.', ['Opening trimming bars checked','Edge and support reinforcement checked','Local reinforcement matches the approved details']],
-      ['REINFORCEMENT','Cover, supports, laps and anchorage checked','Verify specified cover, chairs or spacers, lap locations and anchorage details.', ['Specified cover checked','Chairs and spacers are stable','Lap locations and anchorage checked']],
-      ['CONSTRUCTION JOINTS','Construction joints and waterstops checked','Confirm joint locations, preparation and waterstops where specified.', ['Joint location matches approved details','Joint face preparation checked','Specified waterstop continuity checked']],
-      ['PRE-POUR READINESS','Embedded items and pour area ready','Check specified inserts and services, remove debris or standing water, and record required approvals.', ['Specified sleeves, conduits and inserts checked','Pour area is clean and free of standing water','Required inspection approvals recorded']],
-      ['PLACEMENT READINESS','Concrete placement and testing ready','Confirm approved mix, sampling arrangements, placing and vibration access, weather precautions and site safety.', ['Approved mix and delivery requirements confirmed','Sampling and testing arrangements ready','Placement access, weather and site safety checked']],
+      ['DRAWINGS & SET-OUT','Slab layout and levels match approved drawings','Check grid, slab outline, thickness, openings and levels against the latest approved structural drawings.', ['Latest approved drawing and revision checked','Grid, outline, thickness and openings checked','Levels checked against project references']],
+      ['FORMWORK','Slab formwork and supports are stable','Check dimensions, line and level, props, bracing, tight joints, leakage risk and cleanliness.', ['Slab dimensions, line and level checked','Props, supports and bracing are stable','Joints are tight and formwork is clean']],
+      ['REINFORCEMENT','Main and distribution bars are correctly arranged','Compare bar type, diameter, quantity, spacing and position with approved structural drawings.', ['Main and distribution bars checked','Bar size, quantity and spacing checked against drawings','Bar direction and position match details']],
+      ['REINFORCEMENT','Opening and edge reinforcement matches details','Check trimming, edge and local bars around openings and discontinuities where shown.', ['Opening trimming bars checked','Edge reinforcement checked','Local bars match approved details']],
+      ['REINFORCEMENT','Laps and anchorage follow approved details','Check lap and anchorage locations against drawings; do not use assumed universal lengths.', ['Lap locations match approved details','Anchorage and bar extensions checked','Bars remain in their specified position']],
+      ['REINFORCEMENT','Cover blocks and reinforcement supports are secure','Verify specified cover, cover blocks, chairs and spacers; confirm top and bottom reinforcement remains stable.', ['Specified cover and cover blocks checked','Chairs and spacers are secure','Top and bottom bars remain stable']],
+      ['EMBEDDED ITEMS & JOINTS','Services and construction joints are coordinated','Check specified sleeves, conduits, inserts, openings, joint preparation and waterstop continuity against coordinated details.', ['Services and openings match coordinated drawings','Joint locations and preparation checked','Specified waterstops are continuous']],
+      ['PRE-POUR READINESS','Slab is clean and concrete placement is ready','Remove loose wire, debris, oil and standing water; confirm mix approval, testing, placing and compaction access, weather precautions, safety and required release.', ['Formwork and reinforcement are clean','Mix and sampling/testing arrangements confirmed','Placement access, weather, safety and required approval ready']],
     ],
   },
   Beam: {
     Standard: [
-      ['DRAWINGS & SET-OUT','Beam layout, dimensions and levels verified','Check the latest approved drawing revision, grid, dimensions and levels.', ['Approved drawing and revision checked','Beam grid, dimensions and levels checked','Beam alignment checked at supports']],
-      ['FORMWORK','Beam formwork aligned, supported and ready','Check beam dimensions, soffit level, supports, bracing, tight joints and cleanliness.', ['Beam width, depth and soffit level checked','Supports and bracing checked','Joints, cleanliness and leakage risk checked']],
-      ['REINFORCEMENT','Beam bars and stirrups verified','Check bar size, quantity, arrangement and stirrup spacing against approved drawings.', ['Top and bottom bar size and quantity checked','Stirrups and spacing checked against drawings','Bar arrangement and restraint checked']],
-      ['REINFORCEMENT','Cover, laps and anchorage checked','Verify specified cover, spacers, lap locations and anchorage details.', ['Specified cover and spacers checked','Lap locations checked against details','End anchorage and development details checked']],
-      ['PRE-POUR READINESS','Embedded items and pour area ready','Check specified sleeves or inserts, remove debris or standing water, and record required approvals.', ['Specified sleeves and inserts checked','Beam and formwork are clean','Required inspection approvals recorded']],
-      ['PLACEMENT READINESS','Concrete placement and testing ready','Confirm approved mix, sampling arrangements, placing and vibration access, weather precautions and site safety.', ['Approved mix and delivery requirements confirmed','Sampling and testing arrangements ready','Placement access, weather and site safety checked']],
+      ['DRAWINGS & SET-OUT','Beam position, dimensions and levels match drawings','Check grid, beam width and depth, line and level against the latest approved structural drawings.', ['Approved drawing and revision checked','Beam grid and dimensions checked','Line and level checked at supports']],
+      ['FORMWORK','Beam formwork and supports are stable','Check dimensions, soffit level, props, bracing, joints, leakage risk and cleanliness.', ['Beam dimensions and soffit level checked','Props and bracing are stable','Joints are tight and formwork is clean']],
+      ['REINFORCEMENT','Beam main bars and stirrups match details','Check top and bottom bars, bar size and quantity, stirrup arrangement and spacing against approved drawings.', ['Top and bottom bars checked','Bar size and quantity checked','Stirrups and spacing match approved details']],
+      ['REINFORCEMENT','Beam laps, anchorage and cover are correct','Verify specified cover, spacers, splice locations, anchorage and bar restraint against project details.', ['Specified cover and spacers checked','Splice locations match details','Anchorage and bar restraint checked']],
+      ['CONNECTIONS & EMBEDMENTS','Joint reinforcement and embedded items are coordinated','Check beam-column joint bars, congestion, specified openings, sleeves, inserts and construction joints against coordinated details.', ['Joint bars and anchorage checked','Concrete access through the joint reviewed','Openings, sleeves and joints match coordinated details']],
+      ['PRE-POUR READINESS','Beam is clean and ready for concrete placement','Remove debris and standing water; confirm approved mix, testing plan, placing and vibration access, weather precautions, safety and required release.', ['Beam and formwork are clean','Mix and sampling/testing arrangements confirmed','Placement access, weather, safety and approval ready']],
     ],
     Detailed: [
-      ['DRAWINGS & SET-OUT','Beam layout, dimensions and levels verified','Check the latest approved drawing revision, grid, dimensions and levels.', ['Approved drawing and revision checked','Beam grid, dimensions and levels checked','Beam alignment checked at supports']],
-      ['FORMWORK','Beam formwork aligned, supported and ready','Check beam dimensions, soffit level, supports, bracing, tight joints and cleanliness.', ['Beam width, depth and soffit level checked','Supports and bracing checked','Joints, cleanliness and leakage risk checked']],
-      ['REINFORCEMENT','Beam bars and stirrups verified','Check bar size, quantity, arrangement and stirrup spacing against approved drawings.', ['Top and bottom bar size and quantity checked','Stirrups and spacing checked against drawings','Bar arrangement and restraint checked']],
-      ['REINFORCEMENT','Cover, laps and anchorage checked','Verify specified cover, spacers, lap locations and anchorage details.', ['Specified cover and spacers checked','Lap locations checked against details','End anchorage and development details checked']],
-      ['PRE-POUR READINESS','Embedded items and pour area ready','Check specified sleeves or inserts, remove debris or standing water, and record required approvals.', ['Specified sleeves and inserts checked','Beam and formwork are clean','Required inspection approvals recorded']],
-      ['CONNECTIONS','Beam-column joint reinforcement checked','Verify continuity, anchorage and bar placement at the joint against approved details.', ['Joint bars are continuous as detailed','Anchorage and hooks checked at the joint','Congestion and concrete access reviewed']],
-      ['CONSTRUCTION JOINTS','Joint locations and service openings coordinated','Confirm specified joint preparation and that sleeves or openings do not conflict with reinforcement.', ['Joint location and preparation checked','Sleeves and openings match coordinated drawings','Services do not conflict with reinforcement']],
-      ['PLACEMENT READINESS','Concrete placement and testing ready','Confirm approved mix, sampling arrangements, placing and vibration access, weather precautions and site safety.', ['Approved mix and delivery requirements confirmed','Sampling and testing arrangements ready','Placement access, weather and site safety checked']],
+      ['DRAWINGS & SET-OUT','Beam position, dimensions and levels match drawings','Check grid, beam width and depth, line and level against the latest approved structural drawings.', ['Approved drawing and revision checked','Beam grid and dimensions checked','Line and level checked at supports']],
+      ['FORMWORK','Beam formwork and supports are stable','Check dimensions, soffit level, props, bracing, joints, leakage risk and cleanliness.', ['Beam dimensions and soffit level checked','Props and bracing are stable','Joints are tight and formwork is clean']],
+      ['REINFORCEMENT','Beam main bars match approved details','Check top and bottom bars, bar size, quantity, arrangement and restraint against drawings.', ['Top and bottom bars checked','Bar size and quantity checked','Bar arrangement matches details']],
+      ['REINFORCEMENT','Stirrups and end-zone reinforcement match details','Check stirrup size, arrangement and spacing, including any locally specified end-zone reinforcement.', ['Stirrup arrangement checked','End-zone details checked','Spacing matches approved drawings']],
+      ['REINFORCEMENT','Splices, anchorage and cover are correct','Verify splice locations, anchorage, specified cover, chairs and spacers against approved details.', ['Splice locations match approved details','Anchorage and bar extensions checked','Cover, chairs and spacers checked']],
+      ['CONNECTIONS','Beam-column joint reinforcement is complete','Check continuity and anchorage at the joint; review congestion and space for concrete placement and vibration.', ['Joint bars are continuous as detailed','Anchorage checked at the joint','Concrete access through the joint reviewed']],
+      ['EMBEDDED ITEMS & JOINTS','Openings, embeds and construction joints are coordinated','Check coordinated openings, sleeves and inserts; confirm joint location and preparation where specified.', ['Openings and services match coordinated drawings','Sleeves and inserts are secure','Specified joint location and preparation checked']],
+      ['PRE-POUR READINESS','Beam is clean and concrete placement is ready','Remove debris and standing water; confirm mix approval, testing, placing and vibration access, weather precautions, safety and required release.', ['Beam and formwork are clean','Mix and sampling/testing arrangements confirmed','Placement access, weather, safety and approval ready']],
     ],
   },
   Column: {
     Standard: [
-      ['DRAWINGS & SET-OUT','Column position, dimensions and orientation verified','Check the latest approved drawing revision, grid and column dimensions.', ['Approved drawing and revision checked','Grid, position and orientation checked','Column dimensions checked']],
-      ['FORMWORK','Column formwork plumb, stable and ready','Check alignment, ties, bracing, tight joints and internal cleanliness before closing.', ['Plumb and alignment checked','Ties and bracing checked','Joints and internal cleanliness checked before closing']],
-      ['REINFORCEMENT','Main bars and ties verified','Check bar size, quantity, tie arrangement and spacing against approved drawings.', ['Main bar size and quantity checked','Tie arrangement and spacing checked','Cage position matches approved details']],
-      ['REINFORCEMENT','Cover, laps and anchorage checked','Verify specified cover, spacers, lap locations, anchorage and cage stability.', ['Specified cover and spacers checked','Lap and anchorage details checked','Cage stability checked']],
-      ['PRE-POUR READINESS','Embedded items and column base ready','Check specified inserts, clean the base, and record required inspections and approvals.', ['Specified inserts checked','Column base is clean','Required inspection approvals recorded']],
-      ['PLACEMENT READINESS','Concrete placement and testing ready','Confirm approved mix, sampling arrangements, placing access, weather precautions and site safety.', ['Approved mix and delivery requirements confirmed','Sampling and testing arrangements ready','Placement access, weather and site safety checked']],
+      ['DRAWINGS & SET-OUT','Column location, dimensions and orientation match drawings','Check grid, column dimensions and orientation against the latest approved structural drawings.', ['Approved drawing and revision checked','Grid, location and orientation checked','Column dimensions checked']],
+      ['REINFORCEMENT','Column main bars and ties match details','Check vertical bar size, quantity, position and tie arrangement against approved drawings.', ['Main bar size and quantity checked','Tie arrangement and spacing checked','Cage position matches approved details']],
+      ['REINFORCEMENT','Column splices and anchorage follow approved details','Check splice zones, lap locations and anchorage against the approved structural details.', ['Splice zones and lap locations checked','Anchorage and bar extensions checked','No assumed lap length used']],
+      ['REINFORCEMENT','Column cover and cage supports are secure','Verify specified cover, spacers and cage stability before form closure.', ['Specified cover and spacers checked','Cage is stable and restrained','Bars remain in their specified position']],
+      ['CONNECTIONS & EMBEDMENTS','Starter bars and column connections match details','Check starter bars, dowels, beam-column joint reinforcement and specified embeds against coordinated drawings.', ['Starter bars and dowels checked','Joint reinforcement and anchorage checked','Specified embeds are secure and coordinated']],
+      ['FORMWORK & READINESS','Column formwork, cleanout and placement are ready','Check plumb, ties, bracing, tight joints and cleanout; clean the base and confirm mix, testing, access, weather precautions, safety and required release.', ['Formwork plumb, tied and braced','Joints are tight and cleanout is complete','Base is clean; testing, weather precautions and approval are ready']],
     ],
     Detailed: [
-      ['DRAWINGS & SET-OUT','Column position, dimensions and orientation verified','Check the latest approved drawing revision, grid and column dimensions.', ['Approved drawing and revision checked','Grid, position and orientation checked','Column dimensions checked']],
-      ['FORMWORK','Column formwork plumb, stable and ready','Check alignment, ties, bracing, tight joints and internal cleanliness before closing.', ['Plumb and alignment checked','Ties and bracing checked','Joints and internal cleanliness checked before closing']],
-      ['REINFORCEMENT','Main bars and ties verified','Check bar size, quantity, tie arrangement and spacing against approved drawings.', ['Main bar size and quantity checked','Tie arrangement and spacing checked','Cage position matches approved details']],
-      ['REINFORCEMENT','Cover, laps and anchorage checked','Verify specified cover, spacers, lap locations, anchorage and cage stability.', ['Specified cover and spacers checked','Lap and anchorage details checked','Cage stability checked']],
-      ['PRE-POUR READINESS','Embedded items and column base ready','Check specified inserts, clean the base, and record required inspections and approvals.', ['Specified inserts checked','Column base is clean','Required inspection approvals recorded']],
-      ['CONNECTIONS','Column starter bars and beam-column joint checked','Verify starter locations, projections, joint reinforcement and anchorage against details.', ['Starter bar location and projection checked','Joint reinforcement checked against details','Anchorage at the connection checked']],
-      ['FORMWORK','Cleanout access and concrete placement path checked','Confirm the base is clean and provide practical access for placing and compacting concrete.', ['Cleanout opening/access checked before closing','Base is free of debris and standing water','Placing and compaction access is practical']],
-      ['PLACEMENT READINESS','Concrete placement and testing ready','Confirm approved mix, sampling arrangements, placing access, weather precautions and site safety.', ['Approved mix and delivery requirements confirmed','Sampling and testing arrangements ready','Placement access, weather and site safety checked']],
+      ['DRAWINGS & SET-OUT','Column location, dimensions and vertical alignment match drawings','Check grid, orientation, dimensions and specified vertical alignment against approved drawings.', ['Approved drawing and revision checked','Grid, location and orientation checked','Dimensions and alignment checked against references']],
+      ['REINFORCEMENT','Column vertical bars match approved details','Check bar size, quantity, arrangement and position against structural drawings.', ['Main bar size and quantity checked','Bar arrangement matches details','Cage position checked']],
+      ['REINFORCEMENT','Column ties and confinement details match drawings','Check tie arrangement, spacing, hooks and specified confinement zones against approved details.', ['Tie arrangement and hooks checked','Specified confinement zones checked','Spacing matches approved drawings']],
+      ['REINFORCEMENT','Column splices and anchorage follow approved details','Check splice zones, lap locations and anchorage; do not use assumed universal lengths.', ['Splice zones and lap locations checked','Anchorage and bar extensions checked','Details match the approved drawings']],
+      ['REINFORCEMENT','Column cover and cage supports are secure','Verify specified cover, spacers, chairs and cage stability before form closure.', ['Specified cover and spacers checked','Cage is stable and restrained','Bars remain in their specified position']],
+      ['CONNECTIONS & EMBEDMENTS','Starter bars, joints and embeds are coordinated','Check starter bars, dowels, beam/slab joint reinforcement and specified inserts against coordinated details.', ['Starter bars and dowels checked','Joint reinforcement and anchorage checked','Specified embeds are secure and coordinated']],
+      ['FORMWORK & CLEANOUT','Column formwork and cleanout are ready','Check plumb, ties, bracing, tight joints, cleanout access and a clean base before closing.', ['Formwork plumb, tied and braced','Joints and cleanout opening checked','Base is free of debris and standing water']],
+      ['PRE-POUR READINESS','Column concrete placement and testing are ready','Confirm approved mix, sampling/testing arrangements, placing and compaction access, weather precautions, site safety and required release.', ['Approved mix and delivery requirements confirmed','Sampling/testing arrangements ready','Placement access, weather, safety and approval ready']],
     ],
   },
   Footing: {
     Standard: [
-      ['DRAWINGS & SET-OUT','Footing location, dimensions and levels verified','Check the latest approved drawing revision, grid, dimensions and founding level.', ['Approved drawing and revision checked','Grid and footing dimensions checked','Founding level checked']],
-      ['FOUNDATION PREPARATION','Bearing surface and base preparation approved','Check founding material, remove loose soil or water, and verify specified blinding where applicable.', ['Founding material accepted by the responsible person','Loose material and standing water removed','Specified blinding checked where applicable']],
-      ['REINFORCEMENT','Footing reinforcement arrangement verified','Check bar size, quantity, spacing and position against approved drawings.', ['Bar size and reinforcement quantity checked','Spacing and bar direction checked','Position checked against approved drawings']],
-      ['REINFORCEMENT','Cover, supports, laps and starter bars checked','Verify specified cover, spacers, lap locations, anchorage and starter bars.', ['Specified cover and supports checked','Lap and anchorage details checked','Starter bars match approved details']],
-      ['PRE-POUR READINESS','Formwork and embedded items ready','Check required forms and inserts, remove debris or standing water, and record required approvals.', ['Required formwork and inserts checked','Base is clean and free of standing water','Required inspection approvals recorded']],
-      ['PLACEMENT READINESS','Concrete placement and testing ready','Confirm approved mix, sampling arrangements, placing access, weather precautions and site safety.', ['Approved mix and delivery requirements confirmed','Sampling and testing arrangements ready','Placement access, weather and site safety checked']],
+      ['DRAWINGS & SET-OUT','Footing location, dimensions and founding level match drawings','Check grid, footing dimensions and founding level against the latest approved structural drawings.', ['Approved drawing and revision checked','Grid and footing dimensions checked','Founding level checked against project reference']],
+      ['FOUNDATION PREPARATION','Excavation and bearing surface are ready','Confirm dimensions and founding material with the responsible person; remove loose soil and water, and check specified blinding where applicable.', ['Excavation dimensions and founding level checked','Bearing surface accepted by the responsible person','Loose material, water and specified blinding checked']],
+      ['REINFORCEMENT','Footing bottom reinforcement matches details','Check bar size, quantity, spacing and position in both directions against approved drawings.', ['Bottom bars checked in both directions','Bar size, quantity and spacing checked','Position matches approved details']],
+      ['REINFORCEMENT','Footing cover, supports, laps and anchorage are secure','Verify specified cover, spacers, reinforcement supports, lap locations and anchorage.', ['Specified cover and supports checked','Laps and anchorage match approved details','Reinforcement remains stable']],
+      ['STARTERS & EMBEDMENTS','Starter bars and specified embeds are coordinated','Check column starters, dowels, pedestal bars, inserts and joints against coordinated approved details.', ['Starter bars and dowels match details','Pedestal bars and embeds checked','Specified joint and waterstop details checked']],
+      ['PRE-POUR READINESS','Footing is clean and ready for concrete placement','Remove loose material and standing water; confirm mix approval, testing plan, placing access, weather precautions, site safety and required release.', ['Excavation and reinforcement are clean','Mix and sampling/testing arrangements confirmed','Placement access, weather, safety and approval ready']],
     ],
     Detailed: [
-      ['DRAWINGS & SET-OUT','Footing location, dimensions and levels verified','Check the latest approved drawing revision, grid, dimensions and founding level.', ['Approved drawing and revision checked','Grid and footing dimensions checked','Founding level checked']],
-      ['FOUNDATION PREPARATION','Bearing surface and base preparation approved','Check founding material, remove loose soil or water, and verify specified blinding where applicable.', ['Founding material accepted by the responsible person','Loose material and standing water removed','Specified blinding checked where applicable']],
-      ['REINFORCEMENT','Footing reinforcement arrangement verified','Check bar size, quantity, spacing and position against approved drawings.', ['Bar size and reinforcement quantity checked','Spacing and bar direction checked','Position checked against approved drawings']],
-      ['REINFORCEMENT','Cover, supports, laps and starter bars checked','Verify specified cover, spacers, lap locations, anchorage and starter bars.', ['Specified cover and supports checked','Lap and anchorage details checked','Starter bars match approved details']],
-      ['PRE-POUR READINESS','Formwork and embedded items ready','Check required forms and inserts, remove debris or standing water, and record required approvals.', ['Required formwork and inserts checked','Base is clean and free of standing water','Required inspection approvals recorded']],
-      ['REINFORCEMENT','Pedestal, top bars and local reinforcement checked','Verify pedestal or column connection bars, top reinforcement and local details where specified.', ['Pedestal or column connection bars checked','Top reinforcement checked where specified','Local reinforcement matches approved details']],
-      ['FOUNDATION DETAILS','Construction joints and water control checked','Confirm joint, waterstop, dewatering and waterproofing details where specified.', ['Joint locations checked where specified','Waterstop and waterproofing details checked','Dewatering plan is ready where required']],
-      ['PLACEMENT READINESS','Concrete placement and testing ready','Confirm approved mix, sampling arrangements, placing and vibration access, weather precautions and site safety.', ['Approved mix and delivery requirements confirmed','Sampling and testing arrangements ready','Placement access, weather and site safety checked']],
+      ['DRAWINGS & SET-OUT','Footing location, dimensions and founding level match drawings','Check grid, footing dimensions and founding level against the latest approved structural drawings.', ['Approved drawing and revision checked','Grid and footing dimensions checked','Founding level checked against project reference']],
+      ['FOUNDATION PREPARATION','Excavation, bearing surface and blinding are accepted','Confirm excavation geometry and founding material with the responsible person; check specified blinding where applicable.', ['Excavation dimensions and level checked','Bearing surface accepted by the responsible person','Specified blinding checked where applicable']],
+      ['REINFORCEMENT','Bottom reinforcement in both directions matches details','Check bar size, quantity, spacing and position against approved drawings.', ['Bottom bars checked in both directions','Bar size, quantity and spacing checked','Position matches approved details']],
+      ['REINFORCEMENT','Reinforcement laps and anchorage match details','Check lap locations, bar extensions and anchorage against approved structural drawings.', ['Lap locations match approved details','Bar extensions and anchorage checked','No assumed universal length used']],
+      ['REINFORCEMENT','Cover blocks and reinforcement supports are secure','Verify specified cover, cover blocks, chairs and spacers; confirm the cage remains stable.', ['Specified cover and cover blocks checked','Chairs and spacers are secure','Reinforcement remains stable']],
+      ['STARTERS & EMBEDMENTS','Starter bars, dowels and pedestal reinforcement are coordinated','Check column starters, dowels, pedestal/top bars and specified inserts against coordinated drawings.', ['Starter bars and dowels match details','Pedestal and local bars checked','Specified embeds are secure']],
+      ['FOUNDATION DETAILS','Joints, water control and final cleaning are ready','Check specified joints and waterstops; confirm dewatering where required and remove loose soil, debris and standing water.', ['Specified joint and waterstop details checked','Dewatering arrangement ready where required','Excavation and reinforcement are clean']],
+      ['PRE-POUR READINESS','Footing concrete placement and testing are ready','Confirm approved mix, sampling/testing arrangements, placing and compaction access, weather precautions, site safety and required release.', ['Approved mix and delivery requirements confirmed','Sampling/testing arrangements ready','Placement access, weather, safety and approval ready']],
     ],
   },
 }
@@ -236,7 +237,7 @@ const SAMPLE_PHOTOS = {
   'sample-footing-excavation': { id: 'sample-footing-excavation', caption: 'Excavation and founding surface before footing preparation', dataUrl: footingExcavationContextPhotoUrl },
   'sample-footing-formwork': { id: 'sample-footing-formwork', caption: 'Footing edge form and reinforcement layout before placement', dataUrl: footingFormworkDetailPhotoUrl },
 }
-function makeDemoSample({ id, element, level, itemIndices, name, description, project, location, drawing, revision, date, inspector, contractor, engineer, inspectionNote, sampleReportProfile, sampleReportTitle, sampleReportFocus, sampleEvidenceIntro, statuses, photosByItem, observations, actions }) {
+function makeDemoSample({ id, element, level, itemIndices, name, description, project, floorLevel = '', location, drawing, revision, date, inspector, contractor, engineer, inspectionNote, sampleReportProfile, sampleReportTitle, sampleReportFocus, sampleEvidenceIntro, statuses, photosByItem, observations, actions }) {
   const templateItems = makeItems(element, level)
   const sampleItems = itemIndices ? itemIndices.map(index => templateItems[index]).filter(Boolean) : templateItems
   const items = sampleItems.map((item, index) => {
@@ -256,7 +257,7 @@ function makeDemoSample({ id, element, level, itemIndices, name, description, pr
   })
   return {
     id, element, level, name, description,
-    project, location, drawing, revision, inspector, contractor, engineer,
+    project, floorLevel, location, drawing, revision, inspector, contractor, engineer,
     date: date || localDate(), reportDesign: 'Professional', inspectionNote,
     sampleReportProfile, sampleReportTitle, sampleReportFocus, sampleEvidenceIntro,
     items,
@@ -267,7 +268,7 @@ const SAMPLE_INSPECTIONS = [
   makeDemoSample({
     id: 'sample-slab', element: 'Slab', level: 'Standard', name: 'Slab Pre-Pour Inspection', description: 'Six checks for a suspended slab, with an edge-bracing hold point and paired reinforcement evidence.',
     sampleReportProfile: 'slab', sampleReportTitle: 'SUSPENDED SLAB RELEASE CHECK', sampleReportFocus: 'Formwork · Reinforcement · Placement readiness', sampleEvidenceIntro: 'Paired reinforcement views are grouped beside the related checklist item for comparison.',
-    project: 'DEMO ONLY — Riverside Apartments, Block B', location: 'DEMO ONLY — Grid C2–F5, Level 4', drawing: 'DEMO-STR-SLB-204', revision: '03', date: '2026-11-12',
+    project: 'DEMO ONLY — Riverside Apartments, Block B', floorLevel: 'Fourth Floor', location: 'DEMO ONLY — Grid C2–F5', drawing: 'DEMO-STR-SLB-204', revision: '03', date: '2026-11-12',
     inspector: 'DEMO — Asha Gurung', contractor: 'DEMO — Pemba Rai', engineer: 'DEMO — S. Shrestha',
     inspectionNote: 'DEMO ONLY: Hold concrete placement until the edge-bracing correction is verified. Confirm the pending approval before release.',
     statuses: ['OK', 'Not OK', 'OK', 'OK', 'Pending', 'OK'],
@@ -278,7 +279,7 @@ const SAMPLE_INSPECTIONS = [
   makeDemoSample({
     id: 'sample-beam', element: 'Beam', level: 'Detailed', name: 'Beam Pre-Pour Inspection', description: 'Eight detailed checks for beam end-zone reinforcement, joint coordination and pour release.',
     sampleReportProfile: 'beam', sampleReportTitle: 'BEAM & JOINT REINFORCEMENT REVIEW', sampleReportFocus: 'End-zone bars · Stirrups · Beam-column joint', sampleEvidenceIntro: 'Three close-up views document the beam end-zone; a separate joint image follows its own checklist reference.',
-    project: 'DEMO ONLY — Riverside Apartments, Block B', location: 'DEMO ONLY — Grid B4–B6, Level 2', drawing: 'DEMO-STR-BM-118', revision: '02', date: '2026-11-11',
+    project: 'DEMO ONLY — Riverside Apartments, Block B', floorLevel: 'Second Floor', location: 'DEMO ONLY — Grid B4–B6', drawing: 'DEMO-STR-BM-118', revision: '02', date: '2026-11-11',
     inspector: 'DEMO — Milan Thapa', contractor: 'DEMO — Ramesh Karki', engineer: 'DEMO — N. Adhikari',
     inspectionNote: 'DEMO ONLY: Beam placement is on hold until stirrup spacing is corrected and the opening coordination is approved.',
     statuses: ['OK', 'OK', 'Not OK', 'OK', 'OK', 'Not OK', 'Pending', 'OK'],
@@ -287,20 +288,20 @@ const SAMPLE_INSPECTIONS = [
     actions: { 2: 'DEMO ONLY: Reposition the stirrups to the approved detail and request re-inspection.', 5: 'DEMO ONLY: Obtain coordinated approval for the opening before making any reinforcement change.' },
   }),
   makeDemoSample({
-    id: 'sample-column', element: 'Column', level: 'Standard', name: 'Column Pre-Pour Inspection', description: 'Five checks for a column cage offset at the base, documented from four site angles.',
+    id: 'sample-column', element: 'Column', level: 'Standard', name: 'Column Pre-Pour Inspection', description: 'Six checks for a column cage offset at the base, documented from four site angles.',
     sampleReportProfile: 'column', sampleReportTitle: 'COLUMN CAGE & STARTER-BAR INSPECTION', sampleReportFocus: 'Grid position · Cage stability · Base connection', sampleEvidenceIntro: 'The four-photo sequence keeps the grid context, cage overview and starter-bar details together.',
-    project: 'DEMO ONLY — Riverside Apartments, Block C', location: 'DEMO ONLY — Grid D3, Level 1', drawing: 'DEMO-STR-COL-031', revision: '01', date: '2026-11-10',
+    project: 'DEMO ONLY — Riverside Apartments, Block C', floorLevel: 'First Floor', location: 'DEMO ONLY — Grid D3', drawing: 'DEMO-STR-COL-031', revision: '01', date: '2026-11-10',
     inspector: 'DEMO — Nisha Rai', contractor: 'DEMO — Kiran Tamang', engineer: 'DEMO — P. Joshi',
     inspectionNote: 'DEMO ONLY: Verify the starter-bar correction against the approved detail before closing the column formwork.',
-    statuses: ['OK', 'OK', 'Not OK', 'OK', 'N/A'],
-    photosByItem: { 2: ['sample-column-grid-view', 'sample-column-cage-view', 'sample-column-starter-detail', 'sample-column-structure-context'] },
-    observations: { 2: 'DEMO ONLY: The column cage is offset from the marked grid line at the base.' },
-    actions: { 2: 'DEMO ONLY: Reposition and secure the cage to the approved setting-out marks, then re-inspect.' },
+    statuses: ['Not OK', 'OK', 'OK', 'OK', 'OK', 'OK'],
+    photosByItem: { 0: ['sample-column-grid-view', 'sample-column-cage-view', 'sample-column-starter-detail', 'sample-column-structure-context'] },
+    observations: { 0: 'DEMO ONLY: The column cage is offset from the marked grid line at the base.' },
+    actions: { 0: 'DEMO ONLY: Reposition and secure the cage to the approved setting-out marks, then re-inspect.' },
   }),
   makeDemoSample({
     id: 'sample-footing', element: 'Footing', level: 'Detailed', itemIndices: [0, 1, 2, 3, 4, 6, 7], name: 'Footing Pre-Pour Inspection', description: 'Seven selected detailed checks for an isolated footing, from setting-out through foundation release.',
     sampleReportProfile: 'footing', sampleReportTitle: 'ISOLATED FOOTING FOUNDATION RELEASE', sampleReportFocus: 'Setting-out · Founding surface · Reinforcement · Approval', sampleEvidenceIntro: 'Foundation context and reinforcement close-ups are grouped by the footing check they support.',
-    project: 'DEMO ONLY — Hillside Health Centre', location: 'DEMO ONLY — Grid F2, Foundation F-07', drawing: 'DEMO-STR-FT-007', revision: '04', date: '2026-11-09',
+    project: 'DEMO ONLY — Hillside Health Centre', floorLevel: 'Foundation level', location: 'DEMO ONLY — Grid F2, Foundation F-07', drawing: 'DEMO-STR-FT-007', revision: '04', date: '2026-11-09',
     inspector: 'DEMO — Rupa Shrestha', contractor: 'DEMO — Deepak Lama', engineer: 'DEMO — B. Koirala',
     inspectionNote: 'DEMO ONLY: The reinforcement correction is outstanding and the founding-level approval is pending. Do not release for placement.',
     statuses: ['OK', 'Pending', 'OK', 'Not OK', 'OK', 'Not OK', 'Pending'],
@@ -317,7 +318,7 @@ function localizeSample(sample, language) {
     sampleReportTitle: translate(sample.sampleReportTitle || '', language),
     sampleReportFocus: translate(sample.sampleReportFocus || '', language),
     sampleEvidenceIntro: translate(sample.sampleEvidenceIntro || '', language),
-    project: translate(sample.project, language), location: translate(sample.location, language),
+    project: translate(sample.project, language), floorLevel: translate(sample.floorLevel || '', language), location: translate(sample.location, language),
     drawing: sample.drawing, revision: sample.revision,
     inspector: translate(sample.inspector, language), contractor: translate(sample.contractor, language), engineer: translate(sample.engineer, language),
     inspectionNote: translate(sample.inspectionNote, language),
@@ -346,7 +347,7 @@ function snapshotInspection(data) {
     id: createId('history'),
     inspectionInstanceId: data.inspectionInstanceId,
     savedAt: new Date().toISOString(), project: data.project, element: data.element,
-    level: data.level, location: data.location, drawing: data.drawing, revision: data.revision,
+    level: data.level, floorLevel: data.floorLevel || '', location: data.location, drawing: data.drawing, revision: data.revision,
     inspector: data.inspector, date: data.date, contractor: data.contractor, engineer: data.engineer,
     reportDesign: data.reportDesign, selectedTemplateId: data.selectedTemplateId,
     templateName: data.level === 'Custom' ? (data.customTemplates.find(t => t.id === data.selectedTemplateId)?.name || 'Custom template') : `${data.element} ${data.level}`,
@@ -363,7 +364,7 @@ function initialData() {
   const base = {
     storageVersion: STORAGE_VERSION,
     inspectionInstanceId: makeInspectionId(),
-    project: '', element: 'Slab', level: 'Standard', location: '', drawing: '', revision: '',
+    project: '', element: 'Slab', level: 'Standard', floorLevel: '', location: '', drawing: '', revision: '',
     inspectionHistory: [],
     inspector: '', date: localDate(), contractor: '', engineer: '', reportDesign: 'Professional',
     selectedTemplateId: 'Slab-Standard', templates, customTemplates: [], inspectionDrafts: {}, items: templates['Slab-Standard'],
@@ -432,7 +433,7 @@ export default function App() {
   const [referencePdfMessage, setReferencePdfMessage] = useState('')
   const [showReferenceGuide, setShowReferenceGuide] = useState(false)
   const initialDataRef = useRef(data)
-  const { project, element, level, location, drawing, revision, inspector, date, contractor,
+  const { project, element, level, floorLevel, location, drawing, revision, inspector, date, contractor,
     engineer, reportDesign, selectedTemplateId, customTemplates, items } = data
 
   useEffect(() => {
@@ -848,7 +849,7 @@ export default function App() {
       subChecks: (item.subChecks || []).map(check => check.label),
     })))
     const customized = Array.isArray(sourceItems) && signature(s.items) !== signature(sourceItems)
-    return Boolean(s.project?.trim() || s.location?.trim() || s.drawing?.trim() || s.revision?.trim()
+    return Boolean(s.project?.trim() || s.floorLevel?.trim() || s.location?.trim() || s.drawing?.trim() || s.revision?.trim()
       || s.inspector?.trim() || s.contractor?.trim() || s.engineer?.trim() || customized
       || s.items.some(item => item.status !== 'Pending' || item.notes?.observations?.trim() || item.notes?.comments?.trim()
         || item.remarks?.trim() || item.correctiveAction?.trim() || item.mediaIds?.length || item.actions?.length
@@ -934,7 +935,7 @@ export default function App() {
         [inspectionDraftKey(restored.inspectionInstanceId, selectedTemplateId)]: restored.items }
       if (safeLevel === 'Custom') drafts[selectedTemplateId] = restored.items
       return { ...s, project: record.project || '', element: safeElement, level: safeLevel,
-        location: record.location || '', drawing: record.drawing || '', revision: record.revision || '',
+        floorLevel: record.floorLevel || '', location: record.location || '', drawing: record.drawing || '', revision: record.revision || '',
         inspector: record.inspector || '', date: record.date || localDate(), contractor: record.contractor || '',
         engineer: record.engineer || '', reportDesign: DESIGNS.includes(record.reportDesign) ? record.reportDesign : 'Professional',
         inspectionInstanceId: restored.inspectionInstanceId,
@@ -1100,7 +1101,7 @@ export default function App() {
           <section className="current-project-summary" aria-labelledby="current-project-heading">
             <div className="project-summary-copy"><span className="summary-kicker">{readingText(tr(activePage === 'dashboard' ? 'CURRENT PROJECT' : 'CURRENT INSPECTION'))}</span><h1 id="current-project-heading">{project.trim() || readingText(tr('Project details not entered'))}</h1><p>{project.trim() ? readingText(`${tr(element)} ${tr('inspection')} · ${dateText}`) : readingText(tr('Add project details before recording this inspection.'))}</p></div>
             <button type="button" className="setup-shortcut" onClick={() => { setShowProjectDetails(true); setActivePage('settings') }}>{project.trim() ? tr('Edit project details') : tr('Enter project details')}</button>
-            <dl className="project-summary-facts"><div><dt>{readingText(tr('Structural element'))}</dt><dd>{readingText(tr(element))}</dd></div><div><dt>{readingText(tr('Location / Grid'))}</dt><dd>{location.trim() || tr('Not specified')}</dd></div><div><dt>{readingText(tr('Inspection date'))}</dt><dd>{dateText}</dd></div>{drawing.trim() && <div><dt>{readingText(tr('Drawing'))}</dt><dd>{drawing}{revision.trim() ? ` · ${revision}` : ''}</dd></div>}{inspector.trim() && <div><dt>{readingText(tr('Inspector'))}</dt><dd>{inspector}</dd></div>}</dl>
+            <dl className="project-summary-facts"><div><dt>{readingText(tr('Structural element'))}</dt><dd>{readingText(tr(element))}</dd></div>{floorLevel.trim() && <div><dt>{readingText(tr('Floor / Level'))}</dt><dd>{readingText(tr(floorLevel))}</dd></div>}<div><dt>{readingText(tr('Location / Grid'))}</dt><dd>{location.trim() || tr('Not specified')}</dd></div><div><dt>{readingText(tr('Inspection date'))}</dt><dd>{dateText}</dd></div>{drawing.trim() && <div><dt>{readingText(tr('Drawing'))}</dt><dd>{drawing}{revision.trim() ? ` · ${revision}` : ''}</dd></div>}{inspector.trim() && <div><dt>{readingText(tr('Inspector'))}</dt><dd>{inspector}</dd></div>}</dl>
           </section>
 
           <section className="inspection-overview" aria-label={tr('Inspection overview')}>
@@ -1132,7 +1133,8 @@ export default function App() {
               <div className="form-grid" id="project-information-fields" hidden={!showProjectDetails}>
                 <label>{readingText(tr('Project name'))}<input value={project} onChange={e => field('project', e.target.value)} placeholder={tr('e.g. Residential Apartment Building')} /></label>
                 <label>{readingText(tr('Structural element'))}<select value={element} onChange={e => chooseTemplate(keyOf(e.target.value, 'Standard'))}>{ELEMENTS.map(x => <option key={x} value={x}>{tr(x)}</option>)}</select></label>
-                <label>{readingText(tr('Location / Grid'))}<input value={location} onChange={e => field('location', e.target.value)} placeholder={tr('e.g. Third Floor – Grid A1 to A4')} /></label>
+                <label>{readingText(tr('Floor / Level'))}<input list="floor-level-options" value={FLOOR_LEVEL_PRESETS.includes(floorLevel) ? tr(floorLevel) : floorLevel} onChange={e => { const selectedPreset = FLOOR_LEVEL_PRESETS.find(option => tr(option) === e.target.value); field('floorLevel', selectedPreset || e.target.value) }} placeholder={tr('Choose a floor or enter a custom value')} /><datalist id="floor-level-options">{FLOOR_LEVEL_PRESETS.map(option => <option key={option} value={tr(option)} />)}</datalist></label>
+                <label>{readingText(tr('Location / Grid'))}<input value={location} onChange={e => field('location', e.target.value)} placeholder={tr('e.g. Grid A1 to A4')} /></label>
                 <label>{readingText(tr('Inspection date'))}<input type="date" value={date} onChange={e => field('date', e.target.value)} /></label>
                 <label>{readingText(tr('Drawing number'))}<input value={drawing} onChange={e => field('drawing', e.target.value)} placeholder={tr('e.g. STR-SLAB-003')} /></label>
                 <label>{readingText(tr('Drawing revision'))}<input value={revision} onChange={e => field('revision', e.target.value)} placeholder={tr('e.g. Rev. 02')} /></label>
@@ -1172,7 +1174,7 @@ export default function App() {
             <section className="panel history-records-panel"><div className="section-heading"><div><h2>{readingText(tr('Inspection History'))}</h2><p>{data.inspectionHistory.length} {readingText(tr('archived inspections'))}</p></div></div>
               {data.inspectionHistory.length ? <div className="history-record-grid">{data.inspectionHistory.map((record, index) => <article className="history-record-card" key={record.id || `${record.inspectionInstanceId || 'legacy'}-${index}`}><div><span className="summary-kicker">{readingText(tr('ARCHIVED INSPECTION'))}</span><h3>{record.project || tr('Untitled project')}</h3><p>{readingText(tr(record.element || 'Slab'))} · {readingText(tr(record.templateName || 'Custom template'))} · {record.date || tr('Not specified')}</p><small>{record.items?.length || 0} {readingText(tr('items'))}{record.savedAt ? ` · ${new Date(record.savedAt).toLocaleString(language === 'ja' ? 'ja-JP' : 'en-US')}` : ''}</small></div><div className="inspection-record-actions"><button type="button" className="secondary-button" onClick={() => restoreInspection(record, index)}>{tr('Restore')}</button><button type="button" className="danger-button" onClick={() => removeInspection(record, index)}>{tr('Remove from history')}</button></div></article>)}</div> : <div className="empty-checklist">{readingText(tr('No archived inspections yet.'))}</div>}
             </section>
-            <section className="panel backup-panel"><div className="section-heading"><div><h2>{readingText(tr('Reports and backup'))}</h2><p>{readingText(tr('Backups stay on this device until you download and store them elsewhere.'))}</p></div></div><div className="backup-actions"><button type="button" className="secondary-button" onClick={exportBackup}>{tr('Download full backup')}</button><label className="secondary-button backup-import-control">{tr('Restore backup')}<input type="file" accept=".ccbackup,.json,application/json" onChange={event => { const file = event.target.files?.[0]; restoreBackup(file); event.target.value = '' }} /></label></div>{backupMessage && <p className="backup-status" role="status">{translateMessage(backupMessage, language)}</p>}</section>
+            <section className="panel backup-panel"><div className="section-heading"><div><h2>{readingText(tr('Reports and backup'))}</h2><p>{readingText(tr('Backups include inspection data, templates, history and their photos. The Reference PDF is stored separately and is not included. Download backups and store them elsewhere.'))}</p></div></div><div className="backup-actions"><button type="button" className="secondary-button" onClick={exportBackup}>{tr('Download full backup')}</button><label className="secondary-button backup-import-control">{tr('Restore backup')}<input type="file" accept=".ccbackup,.json,application/json" onChange={event => { const file = event.target.files?.[0]; restoreBackup(file); event.target.value = '' }} /></label></div>{backupMessage && <p className="backup-status" role="status">{translateMessage(backupMessage, language)}</p>}</section>
           </section>}
 
           {activePage === 'help' && <section className="application-page help-page" aria-labelledby="help-page-title">
@@ -1244,7 +1246,7 @@ export default function App() {
           <section className="sample-viewer" role="dialog" aria-modal="true" aria-labelledby="sample-viewer-title" lang={language}>
             <header className="sample-viewer-header"><div><span className="sample-card-badge">{readingText(tr('DEMONSTRATION ONLY — NOT A REAL INSPECTION'))}</span><h2 id="sample-viewer-title">{readingText(viewedSample.name)}</h2><p>{readingText(tr(viewedSample.element))} · {viewedSample.items.length} {readingText(tr('items'))}</p></div><button type="button" className="sample-viewer-close" aria-label={tr('Close example')} onClick={() => setSampleViewingId(null)}>×</button></header>
             <div className="sample-demo-notice">{readingText(tr('This example is illustrative only. Its drawings, inspection, photos and sign-off are not real project records or site evidence.'))}</div>
-            <section className="sample-viewer-section"><h3>{readingText(tr('Sample Project Information'))}</h3><dl className="sample-project-grid"><div><dt>{readingText(tr('Project name'))}</dt><dd>{readingText(viewedSample.project)}</dd></div><div><dt>{readingText(tr('Location / Grid'))}</dt><dd>{readingText(viewedSample.location)}</dd></div><div><dt>{readingText(tr('Structural element'))}</dt><dd>{readingText(tr(viewedSample.element))}</dd></div><div><dt>{readingText(tr('Drawing number'))}</dt><dd>{viewedSample.drawing} · {viewedSample.revision}</dd></div><div><dt>{readingText(tr('Inspection date'))}</dt><dd>{viewedSample.date}</dd></div><div><dt>{readingText(tr('Inspector'))}</dt><dd>{readingText(viewedSample.inspector)}</dd></div><div><dt>{readingText(tr('Contractor representative'))}</dt><dd>{readingText(viewedSample.contractor)}</dd></div><div><dt>{readingText(tr('Engineer'))}</dt><dd>{readingText(viewedSample.engineer)}</dd></div></dl></section>
+            <section className="sample-viewer-section"><h3>{readingText(tr('Sample Project Information'))}</h3><dl className="sample-project-grid"><div><dt>{readingText(tr('Project name'))}</dt><dd>{readingText(viewedSample.project)}</dd></div><div><dt>{readingText(tr('Floor / Level'))}</dt><dd>{readingText(tr(viewedSample.floorLevel || 'Not specified'))}</dd></div><div><dt>{readingText(tr('Location / Grid'))}</dt><dd>{readingText(viewedSample.location)}</dd></div><div><dt>{readingText(tr('Structural element'))}</dt><dd>{readingText(tr(viewedSample.element))}</dd></div><div><dt>{readingText(tr('Drawing number'))}</dt><dd>{viewedSample.drawing} · {viewedSample.revision}</dd></div><div><dt>{readingText(tr('Inspection date'))}</dt><dd>{viewedSample.date}</dd></div><div><dt>{readingText(tr('Inspector'))}</dt><dd>{readingText(viewedSample.inspector)}</dd></div><div><dt>{readingText(tr('Contractor representative'))}</dt><dd>{readingText(viewedSample.contractor)}</dd></div><div><dt>{readingText(tr('Engineer'))}</dt><dd>{readingText(tr(viewedSample.engineer))}</dd></div></dl></section>
             <section className="sample-viewer-section sample-inspection-summary"><div className="section-heading"><div><h3>{readingText(tr('Inspection Summary'))}</h3><p>{viewedSampleCounts.total ? Math.round(((viewedSampleCounts.ok + viewedSampleCounts.notOk + viewedSampleCounts.na) / viewedSampleCounts.total) * 100) : 0}% {readingText(tr('Progress'))}</p></div><strong>{viewedSampleCounts.total} {readingText(tr('items'))}</strong></div><div className="sample-summary-counts"><span>{viewedSampleCounts.ok} {readingText(tr('OK'))}</span><span>{viewedSampleCounts.notOk} {readingText(tr('Not OK'))}</span><span>{viewedSampleCounts.pending} {readingText(tr('Pending'))}</span><span>{viewedSampleCounts.na} {readingText(tr('N/A'))}</span><span>{viewedSampleCounts.openActions} {readingText(tr('Open actions'))}</span></div></section>
             <section className="sample-viewer-section" id="sample-viewer-checklist"><div className="section-heading"><div><h3>{readingText(tr('Checklist'))}</h3><p>{readingText(tr('Acceptance criteria, Quick Checks and final status are shown for each original checklist item.'))}</p></div></div><div className="sample-category-groups">{viewedSampleGroups.map(group => <section className="sample-category-group" key={group.category}><header><h4>{readingText(tr(group.category))}</h4><span>{group.items.filter(({ item }) => item.status !== 'Pending').length}/{group.items.length} {readingText(tr('reviewed'))}</span></header><div className="sample-checklist-list">{group.items.map(({ item, index }) => <article className="sample-checklist-item" key={item.id}><div className="sample-checklist-item-head"><span>{readingText(tr('ITEM'))} {String(index + 1).padStart(2, '0')} · {readingText(tr(item.category))}</span><strong className={`sample-status sample-status-${item.status.toLowerCase().replace(' ', '-')}`}>{readingText(tr(item.status))}</strong></div><h4>{readingText(item.requirement)}</h4>{showCriteria && item.criteria && <p className="sample-checklist-criteria"><strong>{readingText(tr('Acceptance criteria'))}:</strong> {readingText(item.criteria)}</p>}<div className="sample-quick-checks"><strong>{readingText(tr('Quick checks'))}</strong>{item.subChecks.map(check => <span key={check.id}><i aria-hidden="true">{check.checked ? '✓' : '○'}</i> {readingText(check.label)}</span>)}</div>{(item.notes?.observations || item.actions?.length > 0) && <div className="sample-item-evidence">{item.notes?.observations && <p><strong>{readingText(tr('Observation:'))}</strong> {readingText(item.notes.observations)}</p>}{item.actions?.map(action => <p key={action.id}><strong>{readingText(tr('Corrective Action:'))}</strong> {readingText(action.description)}{action.responsiblePerson ? ` · ${tr('Responsible:')} ${tr(action.responsiblePerson)}` : ''}{action.status ? ` · ${tr(action.status)}` : ''}</p>)}</div>}{(item.mediaIds || []).length > 0 && <div className="sample-item-photos">{item.mediaIds.map(photoId => { const photo = viewedSample.photos[photoId]; return photo && <figure key={photoId}><img src={photo.dataUrl} alt={`${tr('Sample photo — illustrative only')}: ${tr(photo.caption)}`} /><figcaption><span>{readingText(tr('ITEM'))} {String(index + 1).padStart(2, '0')}</span>{readingText(tr(photo.caption))}<small>{readingText(tr('Sample photo — illustrative only'))}</small></figcaption></figure> })}</div>}</article>)}</div></section>)}</div></section>
             <section className="sample-viewer-section sample-signoff"><h3>{readingText(tr('Sample Inspection Note'))}</h3><p>{readingText(tr(viewedSample.inspectionNote))}</p><div><span>{readingText(tr('Inspector'))}: {readingText(viewedSample.inspector)}</span><span>{readingText(tr('Contractor representative'))}: {readingText(viewedSample.contractor)}</span><span>{readingText(tr('Engineer'))}: {readingText(viewedSample.engineer)}</span></div></section>
@@ -1259,10 +1261,10 @@ export default function App() {
 
       <section className="print-section"><h2>{tr('1. PROJECT INFORMATION')}</h2><table className="print-info-table"><tbody>
         <tr><th>{tr('Project name')}</th><td>{reportData.project || tr('Not specified')}</td><th>{tr('Structural element')}</th><td>{tr(reportElement)}</td></tr>
-        <tr><th>{tr('Location / Grid')}</th><td>{reportData.location || tr('Not specified')}</td><th>{tr('Inspection date')}</th><td>{reportDateText}</td></tr>
-        <tr><th>{tr('Drawing number')}</th><td>{reportData.drawing || tr('Not specified')}</td><th>{tr('Drawing revision')}</th><td>{reportData.revision || tr('Not specified')}</td></tr>
-        <tr><th>{tr('Checklist template')}</th><td>{reportTemplateName}</td><th>{tr('Report design')}</th><td>{tr(reportLayout)}</td></tr>
-        <tr><th>{tr('Inspector')}</th><td colSpan="3">{reportData.inspector || tr('Not specified')}</td></tr>
+        <tr><th>{tr('Floor / Level')}</th><td>{tr(reportData.floorLevel || 'Not specified')}</td><th>{tr('Location / Grid')}</th><td>{reportData.location || tr('Not specified')}</td></tr>
+        <tr><th>{tr('Inspection date')}</th><td>{reportDateText}</td><th>{tr('Drawing number')}</th><td>{reportData.drawing || tr('Not specified')}</td></tr>
+        <tr><th>{tr('Drawing revision')}</th><td>{reportData.revision || tr('Not specified')}</td><th>{tr('Checklist template')}</th><td>{reportTemplateName}</td></tr>
+        <tr><th>{tr('Report design')}</th><td>{tr(reportLayout)}</td><th>{tr('Inspector')}</th><td>{reportData.inspector || tr('Not specified')}</td></tr>
       </tbody></table></section>
 
       <section className="print-section"><h2>{tr('2. INSPECTION SUMMARY')}</h2><table className="print-summary-table"><thead><tr><th>{tr('Total items')}</th><th>{tr('OK')}</th><th>{tr('Not OK')}</th><th>{tr('Pending')}</th><th>{tr('N/A')}</th><th>{tr('Progress')}</th></tr></thead><tbody><tr><td>{reportItems.length}</td><td>{reportCounts.ok}</td><td>{reportCounts.failed}</td><td>{reportCounts.pending}</td><td>{reportCounts.na}</td><td>{reportProgress}%</td></tr></tbody></table></section>
