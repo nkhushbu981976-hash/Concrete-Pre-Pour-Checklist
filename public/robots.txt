@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://concrete-pre-pour-checklist.vercel.app/sitemap.xml
