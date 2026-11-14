@@ -119,7 +119,7 @@ const T = {
       ['REINFORCEMENT','Main and distribution bars are correctly arranged','Compare bar type, diameter, quantity, spacing and position with approved structural drawings.', ['Main and distribution bars checked','Bar size, quantity and spacing checked against drawings','Bar direction and position match details']],
       ['REINFORCEMENT','Cover, laps and bar supports match approved details','Check specified cover, lap and anchorage locations, chairs, spacers, and top and bottom bar stability.', ['Specified cover and cover blocks checked','Chairs and spacers support the reinforcement','Lap, anchorage and bar stability checked']],
       ['EMBEDDED ITEMS & JOINTS','Embedded services, openings and joints are coordinated','Check specified conduits, sleeves, inserts, openings, construction joints and waterstops against coordinated approved details.', ['Conduits, sleeves, openings and inserts checked','Specified joints and waterstops checked','Embedded items are secure and clear of reinforcement']],
-      ['PRE-POUR READINESS','Slab is clean and ready for concrete placement','Remove loose wire, debris, oil and standing water; confirm the approved mix, testing plan, placing access, compaction equipment, weather precautions, site safety and required release.', ['Formwork and reinforcement are free of debris and contamination','Approved mix and sampling/testing plan confirmed','Access, compaction equipment, weather and site safety ready']],
+      ['PRE-POUR READINESS','Slab is clean and ready for concrete placement','Remove loose wire, debris, oil and standing water; for slab-on-ground, check the base/subgrade and specified blinding and remove unsuitable material. This subgrade check does not apply to suspended slabs. Confirm the approved mix, testing plan, placing access, compaction equipment, weather precautions, site safety and required release.', ['Formwork and reinforcement are clean; for slab-on-ground, base/subgrade and specified blinding checked and unsuitable material removed','Approved mix and sampling/testing plan confirmed','Access, compaction equipment, weather and site safety ready']],
     ],
     Detailed: [
       ['DRAWINGS & SET-OUT','Slab layout and levels match approved drawings','Check grid, slab outline, thickness, openings and levels against the latest approved structural drawings.', ['Latest approved drawing and revision checked','Grid, outline, thickness and openings checked','Levels checked against project references']],
@@ -129,7 +129,7 @@ const T = {
       ['REINFORCEMENT','Laps and anchorage follow approved details','Check lap and anchorage locations against drawings; do not use assumed universal lengths.', ['Lap locations match approved details','Anchorage and bar extensions checked','Bars remain in their specified position']],
       ['REINFORCEMENT','Cover blocks and reinforcement supports are secure','Verify specified cover, cover blocks, chairs and spacers; confirm top and bottom reinforcement remains stable.', ['Specified cover and cover blocks checked','Chairs and spacers are secure','Top and bottom bars remain stable']],
       ['EMBEDDED ITEMS & JOINTS','Services and construction joints are coordinated','Check specified sleeves, conduits, inserts, openings, joint preparation and waterstop continuity against coordinated details.', ['Services and openings match coordinated drawings','Joint locations and preparation checked','Specified waterstops are continuous']],
-      ['PRE-POUR READINESS','Slab is clean and concrete placement is ready','Remove loose wire, debris, oil and standing water; confirm mix approval, testing, placing and compaction access, weather precautions, safety and required release.', ['Formwork and reinforcement are clean','Mix and sampling/testing arrangements confirmed','Placement access, weather, safety and required approval ready']],
+      ['PRE-POUR READINESS','Slab is clean and concrete placement is ready','Remove loose wire, debris, oil and standing water; for slab-on-ground, check the base/subgrade and specified blinding and remove unsuitable material. This subgrade check does not apply to suspended slabs. Confirm mix approval, testing, placing and compaction access, weather precautions, safety and required release.', ['Formwork and reinforcement are clean; for slab-on-ground, base/subgrade and specified blinding checked and unsuitable material removed','Mix and sampling/testing arrangements confirmed','Placement access, weather, safety and required approval ready']],
     ],
   },
   Beam: {
@@ -158,7 +158,7 @@ const T = {
       ['REINFORCEMENT','Column main bars and ties match details','Check vertical bar size, quantity, position and tie arrangement against approved drawings.', ['Main bar size and quantity checked','Tie arrangement and spacing checked','Cage position matches approved details']],
       ['REINFORCEMENT','Column splices and anchorage follow approved details','Check splice zones, lap locations and anchorage against the approved structural details.', ['Splice zones and lap locations checked','Anchorage and bar extensions checked','No assumed lap length used']],
       ['REINFORCEMENT','Column cover and cage supports are secure','Verify specified cover, spacers and cage stability before form closure.', ['Specified cover and spacers checked','Cage is stable and restrained','Bars remain in their specified position']],
-      ['CONNECTIONS & EMBEDMENTS','Starter bars and column connections match details','Check starter bars, dowels, beam-column joint reinforcement and specified embeds against coordinated drawings.', ['Starter bars and dowels checked','Joint reinforcement and anchorage checked','Specified embeds are secure and coordinated']],
+      ['CONNECTIONS & EMBEDMENTS','Starter bars and column connections match details','Check starter bars, dowels, beam-column joint reinforcement and specified embeds against coordinated drawings. Where a construction joint is specified, verify its location and surface preparation against approved drawings/specifications and check that the joint surface is clean before placement.', ['Starter bars and dowels checked','Joint reinforcement/anchorage and any specified construction-joint location, preparation and cleanliness checked','Specified embeds are secure and coordinated']],
       ['FORMWORK & READINESS','Column formwork, cleanout and placement are ready','Check plumb, ties, bracing, tight joints and cleanout; clean the base and confirm mix, testing, access, weather precautions, safety and required release.', ['Formwork plumb, tied and braced','Joints are tight and cleanout is complete','Base is clean; testing, weather precautions and approval are ready']],
     ],
     Detailed: [
@@ -167,7 +167,7 @@ const T = {
       ['REINFORCEMENT','Column ties and confinement details match drawings','Check tie arrangement, spacing, hooks and specified confinement zones against approved details.', ['Tie arrangement and hooks checked','Specified confinement zones checked','Spacing matches approved drawings']],
       ['REINFORCEMENT','Column splices and anchorage follow approved details','Check splice zones, lap locations and anchorage; do not use assumed universal lengths.', ['Splice zones and lap locations checked','Anchorage and bar extensions checked','Details match the approved drawings']],
       ['REINFORCEMENT','Column cover and cage supports are secure','Verify specified cover, spacers, chairs and cage stability before form closure.', ['Specified cover and spacers checked','Cage is stable and restrained','Bars remain in their specified position']],
-      ['CONNECTIONS & EMBEDMENTS','Starter bars, joints and embeds are coordinated','Check starter bars, dowels, beam/slab joint reinforcement and specified inserts against coordinated details.', ['Starter bars and dowels checked','Joint reinforcement and anchorage checked','Specified embeds are secure and coordinated']],
+      ['CONNECTIONS & EMBEDMENTS','Starter bars, joints and embeds are coordinated','Check starter bars, dowels, beam/slab joint reinforcement and specified inserts against coordinated details. Where a construction joint is specified, verify its location and surface preparation against approved drawings/specifications and check that the joint surface is clean before placement.', ['Starter bars and dowels checked','Joint reinforcement/anchorage and any specified construction-joint location, preparation and cleanliness checked','Specified embeds are secure and coordinated']],
       ['FORMWORK & CLEANOUT','Column formwork and cleanout are ready','Check plumb, ties, bracing, tight joints, cleanout access and a clean base before closing.', ['Formwork plumb, tied and braced','Joints and cleanout opening checked','Base is free of debris and standing water']],
       ['PRE-POUR READINESS','Column concrete placement and testing are ready','Confirm approved mix, sampling/testing arrangements, placing and compaction access, weather precautions, site safety and required release.', ['Approved mix and delivery requirements confirmed','Sampling/testing arrangements ready','Placement access, weather, safety and approval ready']],
     ],
@@ -175,7 +175,7 @@ const T = {
   Footing: {
     Standard: [
       ['DRAWINGS & SET-OUT','Footing location, dimensions and founding level match drawings','Check grid, footing dimensions and founding level against the latest approved structural drawings.', ['Approved drawing and revision checked','Grid and footing dimensions checked','Founding level checked against project reference']],
-      ['FOUNDATION PREPARATION','Excavation and bearing surface are ready','Confirm dimensions and founding material with the responsible person; remove loose soil and water, and check specified blinding where applicable.', ['Excavation dimensions and founding level checked','Bearing surface accepted by the responsible person','Loose material, water and specified blinding checked']],
+      ['FOUNDATION PREPARATION','Excavation and bearing surface are ready','Confirm dimensions and founding material with the responsible person; remove loose soil and water, and check specified blinding where applicable. Where formwork is used, verify its dimensions, alignment, support, stability and cleanliness; omit this check for earth-formed sides.', ['Excavation dimensions and founding level checked','Bearing surface accepted by the responsible person','Loose material, water and specified blinding checked; where used, formwork dimensions, alignment, support, stability and cleanliness checked']],
       ['REINFORCEMENT','Footing bottom reinforcement matches details','Check bar size, quantity, spacing and position in both directions against approved drawings.', ['Bottom bars checked in both directions','Bar size, quantity and spacing checked','Position matches approved details']],
       ['REINFORCEMENT','Footing cover, supports, laps and anchorage are secure','Verify specified cover, spacers, reinforcement supports, lap locations and anchorage.', ['Specified cover and supports checked','Laps and anchorage match approved details','Reinforcement remains stable']],
       ['STARTERS & EMBEDMENTS','Starter bars and specified embeds are coordinated','Check column starters, dowels, pedestal bars, inserts and joints against coordinated approved details.', ['Starter bars and dowels match details','Pedestal bars and embeds checked','Specified joint and waterstop details checked']],
@@ -183,7 +183,7 @@ const T = {
     ],
     Detailed: [
       ['DRAWINGS & SET-OUT','Footing location, dimensions and founding level match drawings','Check grid, footing dimensions and founding level against the latest approved structural drawings.', ['Approved drawing and revision checked','Grid and footing dimensions checked','Founding level checked against project reference']],
-      ['FOUNDATION PREPARATION','Excavation, bearing surface and blinding are accepted','Confirm excavation geometry and founding material with the responsible person; check specified blinding where applicable.', ['Excavation dimensions and level checked','Bearing surface accepted by the responsible person','Specified blinding checked where applicable']],
+      ['FOUNDATION PREPARATION','Excavation, bearing surface and blinding are accepted','Confirm excavation geometry and founding material with the responsible person; check specified blinding where applicable. Where formwork is used, verify its dimensions, alignment, support, stability and cleanliness; omit this check for earth-formed sides.', ['Excavation dimensions and level checked','Bearing surface accepted by the responsible person','Specified blinding checked where applicable; where used, formwork dimensions, alignment, support, stability and cleanliness checked']],
       ['REINFORCEMENT','Bottom reinforcement in both directions matches details','Check bar size, quantity, spacing and position against approved drawings.', ['Bottom bars checked in both directions','Bar size, quantity and spacing checked','Position matches approved details']],
       ['REINFORCEMENT','Reinforcement laps and anchorage match details','Check lap locations, bar extensions and anchorage against approved structural drawings.', ['Lap locations match approved details','Bar extensions and anchorage checked','No assumed universal length used']],
       ['REINFORCEMENT','Cover blocks and reinforcement supports are secure','Verify specified cover, cover blocks, chairs and spacers; confirm the cage remains stable.', ['Specified cover and cover blocks checked','Chairs and spacers are secure','Reinforcement remains stable']],
@@ -402,6 +402,8 @@ export default function App() {
   const [data, setData] = useState(initialData)
   const [activePage, setActivePage] = useState('dashboard')
   const [language, setLanguage] = useState(() => {
+    const requestedLanguage = new URLSearchParams(window.location.search).get('lang')
+    if (requestedLanguage === 'en' || requestedLanguage === 'ja') return requestedLanguage
     try { return localStorage.getItem(LANGUAGE_KEY) === 'ja' ? 'ja' : 'en' } catch { return 'en' }
   })
   const tr = value => translate(value, language)
@@ -439,8 +441,15 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem(LANGUAGE_KEY, language) } catch { /* Language preference is optional; inspection storage remains independent. */ }
     document.documentElement.lang = language
-    document.title = language === 'ja' ? 'ConcreteCheck — コンクリート打設前検査' : 'ConcreteCheck — Concrete Pre-Pour Inspection'
   }, [language])
+
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const requestedLanguage = url.searchParams.get('lang')
+    if (requestedLanguage !== 'en' && requestedLanguage !== 'ja') return
+    url.searchParams.delete('lang')
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+  }, [])
 
   useEffect(() => () => reportPhotoUrls.current.forEach(revokePhotoUrl), [])
 
@@ -1113,6 +1122,10 @@ export default function App() {
           </>}
 
           {activePage === 'dashboard' && <>
+          <section className="dashboard-intro" aria-labelledby="dashboard-seo-heading">
+            <h1 id="dashboard-seo-heading">Concrete Pre-Pour Inspection Checklist</h1>
+            <p>ConcreteCheck helps construction teams carry out and record concrete pre-pour inspections.</p>
+          </section>
           <section className="dashboard-section" aria-labelledby="start-inspection-heading">
             <div className="dashboard-section-heading"><div><span className="summary-kicker">{readingText(tr('START A FIELD INSPECTION'))}</span><h2 id="start-inspection-heading">{readingText(tr('Start New Inspection'))}</h2><p>{readingText(tr('Choose the structural element to open its matching checklist.'))}</p></div></div>
             <div className="inspection-category-grid">{ELEMENTS.map(category => <article className="inspection-category-card" key={category}>

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ja-JP" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#17324f" />
+    <meta name="google" content="notranslate" />
+    <title>コンクリート打設前点検チェックリスト | ConcreteCheck</title>
+    <meta name="description" content="建設現場でのコンクリート打設前点検を、チェックリストで確認・記録。写真記録や是正事項を残し、点検レポートを印刷・出力できます。" />
+    <link rel="canonical" href="https://concrete-pre-pour-checklist.vercel.app/ja/" />
+    <link rel="alternate" hreflang="en" href="https://concrete-pre-pour-checklist.vercel.app/" />
+    <link rel="alternate" hreflang="ja-JP" href="https://concrete-pre-pour-checklist.vercel.app/ja/" />
+    <link rel="alternate" hreflang="x-default" href="https://concrete-pre-pour-checklist.vercel.app/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://concrete-pre-pour-checklist.vercel.app/ja/" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:site_name" content="ConcreteCheck" />
+    <meta property="og:title" content="コンクリート打設前点検チェックリスト | ConcreteCheck" />
+    <meta property="og:description" content="建設現場でのコンクリート打設前点検を、チェックリストで確認・記録。写真記録や是正事項を残し、点検レポートを印刷・出力できます。" />
+    <meta property="og:image" content="https://concrete-pre-pour-checklist.vercel.app/social-preview.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ConcreteCheck — コンクリート打設前点検" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="コンクリート打設前点検チェックリスト | ConcreteCheck" />
+    <meta name="twitter:description" content="建設現場でのコンクリート打設前点検を、チェックリストで確認・記録。写真記録や是正事項を残し、点検レポートを印刷・出力できます。" />
+    <meta name="twitter:image" content="https://concrete-pre-pour-checklist.vercel.app/social-preview.jpg" />
+    <style>
+      :root { color-scheme: light; --navy: #17324f; --teal: #0d9488; --ink: #26374b; --muted: #5c6c7e; --line: #dce5ec; --surface: #fff; --page: #f4f7fa; }
+      *, *::before, *::after { box-sizing: border-box; }
+      body { margin: 0; min-width: 320px; background: var(--page); color: var(--ink); font-family: "Noto Sans JP", "Yu Gothic", "Meiryo", system-ui, sans-serif; line-height: 1.75; }
+      .site-header { background: var(--navy); color: #fff; }
+      .header-inner, main, .footer-inner { width: min(1080px, calc(100% - 40px)); margin-inline: auto; }
+      .header-inner { min-height: 72px; display: flex; align-items: center; gap: 11px; }
+      .brand img { width: 38px; height: 38px; vertical-align: middle; }
+      .brand-name { color: #fff; font-weight: 800; letter-spacing: .02em; }
+      .brand-subtitle { display: block; margin-top: 2px; color: #c9d7e4; font-size: 11px; font-weight: 500; }
+      main { padding-block: 54px 48px; }
+      .hero { padding: clamp(25px, 5vw, 48px); border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: 0 8px 24px rgba(23, 50, 79, .07); }
+      .eyebrow { margin: 0 0 9px; color: #087f75; font-size: 12px; font-weight: 800; letter-spacing: .08em; }
+      h1 { max-width: 800px; margin: 0; color: var(--navy); font-size: clamp(27px, 5vw, 42px); line-height: 1.4; letter-spacing: .01em; }
+      .lead { max-width: 760px; margin: 17px 0 0; color: var(--muted); font-size: clamp(15px, 2vw, 17px); }
+      .tagline { margin: 12px 0 0; color: var(--navy); font-size: 14px; font-weight: 800; letter-spacing: .04em; }
+      .primary-link { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; margin-top: 25px; padding: 10px 20px; border-radius: 9px; background: var(--teal); color: #fff; font-weight: 800; text-decoration: none; }
+      .primary-link:hover { background: #087f75; }
+      .primary-link:focus-visible { outline: 3px solid #52cfc0; outline-offset: 3px; }
+      .section { margin-top: 32px; }
+      .section h2 { margin: 0 0 14px; color: var(--navy); font-size: 20px; line-height: 1.5; }
+      .feature-grid, .workflow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+      .feature { padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+      .feature h3 { margin: 0 0 5px; color: var(--navy); font-size: 15px; }
+      .feature p { margin: 0; color: var(--muted); font-size: 13px; }
+      .workflow { margin: 0; padding: 0; list-style: none; }
+      .workflow li { display: flex; gap: 12px; padding: 15px; border-left: 3px solid var(--teal); background: #fff; }
+      .step { flex: 0 0 auto; color: var(--teal); font-size: 13px; font-weight: 900; }
+      .workflow strong { display: block; color: var(--navy); font-size: 14px; }
+      .workflow span:last-child { color: var(--muted); font-size: 12px; }
+      .site-footer { border-top: 1px solid var(--line); background: #fff; }
+      .footer-inner { min-height: 64px; display: flex; align-items: center; color: var(--muted); font-size: 12px; }
+      @media (max-width: 680px) { .header-inner, main, .footer-inner { width: min(100% - 28px, 1080px); } .header-inner { min-height: 64px; } .brand img { width: 34px; height: 34px; } main { padding-block: 24px 30px; } .hero { padding: 22px 18px; border-radius: 14px; } .feature-grid, .workflow { grid-template-columns: 1fr; gap: 9px; } .feature { padding: 14px; } .section { margin-top: 24px; } .footer-inner { min-height: 58px; } .primary-link { width: 100%; } }
+    </style>
+  </head>
+  <body>
+    <header class="site-header"><div class="header-inner">
+      <div class="brand"><img src="/favicon.svg?v=3" alt="" width="38" height="38" /><span class="brand-name">ConcreteCheck<small class="brand-subtitle">コンクリート打設前点検</small></span></div>
+    </div></header>
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <p class="eyebrow">建設現場のコンクリート打設前点検</p>
+        <h1 id="page-title">コンクリート打設前点検チェックリスト</h1>
+        <p class="lead">ConcreteCheckは、建設現場でのコンクリート打設前点検を、シンプルなチェックリストで確認・記録するためのツールです。点検結果や写真、必要な是正事項をまとめ、点検レポートとして印刷・出力できます。</p>
+        <p class="tagline">点検・記録・報告をシンプルに。</p>
+        <a class="primary-link" href="/app/?lang=ja">ConcreteCheckを開く</a>
+      </section>
+      <section class="section" aria-labelledby="features-title">
+        <h2 id="features-title">現場での点検と記録をサポート</h2>
+        <div class="feature-grid">
+          <article class="feature"><h3>点検項目の確認と記録</h3><p>スラブ、梁（はり）、柱（はしら）、フーチング・基礎のチェックリストを確認し、各項目の点検結果を記録できます。</p></article>
+          <article class="feature"><h3>写真と是正事項</h3><p>点検項目に写真を添付し、点検所見や必要な是正措置を記録できます。</p></article>
+          <article class="feature"><h3>レポートの出力</h3><p>プロジェクト情報、チェックリスト、写真記録を含む点検レポートを印刷またはPDFとして出力できます。</p></article>
+        </div>
+      </section>
+      <section class="section" aria-labelledby="workflow-title">
+        <h2 id="workflow-title">現場での使い方</h2>
+        <ol class="workflow">
+          <li><span class="step">01</span><span><strong>構造部位を選ぶ</strong><span>スラブ、梁（はり）、柱（はしら）、フーチング・基礎から点検対象を選びます。</span></span></li>
+          <li><span class="step">02</span><span><strong>点検結果と証拠を記録</strong><span>チェック項目の判定を選び、必要に応じて写真や是正事項を追加します。</span></span></li>
+          <li><span class="step">03</span><span><strong>レポートを出力</strong><span>点検内容を確認し、レポートを印刷またはPDFとして保存します。</span></span></li>
+        </ol>
+      </section>
+    </main>
+    <footer class="site-footer"><div class="footer-inner">ConcreteCheck · 点検・記録・報告</div></footer>
+  </body>
+</html>

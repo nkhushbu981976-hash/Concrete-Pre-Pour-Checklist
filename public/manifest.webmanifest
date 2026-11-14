@@ -3,7 +3,7 @@
   "name": "ConcreteCheck",
   "short_name": "ConcreteCheck",
   "description": "A practical field checklist for concrete pre-pour inspections, evidence and reports.",
-  "start_url": "/",
+  "start_url": "/app/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
