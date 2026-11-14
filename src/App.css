@@ -2431,6 +2431,7 @@ textarea {
   .screen-only .dashboard-section-heading h2 { font-size: 17px; }
   .screen-only .inspection-category-grid { grid-template-columns: 1fr; gap: 9px; }
   .screen-only .inspection-category-card { grid-template-columns: 44px minmax(0,1fr) auto; gap: 9px; padding: 11px; }
+  .screen-only .category-card-copy h3 { font-size: 16px; line-height: 1.3; }
   .screen-only .category-card-icon { width: 42px; height: 42px; }
   .screen-only .structure-icon { width: 34px; height: 28px; }
   .screen-only .inspection-category-card > button { grid-column: auto; width: auto; min-height: 44px; padding-inline: 10px; font-size: 10px; }
@@ -2753,10 +2754,10 @@ textarea {
     padding: 6px 7px;
   }
   .screen-only .topbar .brand { min-width: 0; flex: 1 1 auto; gap: 5px; }
-  .screen-only .topbar .brand-icon { width: 27px; height: 27px; padding: 2px; border-radius: 7px; }
+  .screen-only .topbar .brand-icon { width: 29px; height: 29px; padding: 2px; border-radius: 7px; }
   .screen-only .topbar .brand-copy { min-width: 0; }
-  .screen-only .topbar .brand strong { font-size: 12px; line-height: 1.1; }
-  .screen-only .topbar .brand span { max-width: 145px; margin-top: 2px; font-size: 7.5px; line-height: 1.15; }
+  .screen-only .topbar .brand strong { font-size: 13px; line-height: 1.1; }
+  .screen-only .topbar .brand span { max-width: 145px; margin-top: 2px; font-size: 8.5px; line-height: 1.15; }
   .screen-only .topbar .topbar-actions {
     display: flex;
     flex: 0 0 auto;
@@ -2808,8 +2809,8 @@ textarea {
 @media screen and (max-width: 350px) {
   .screen-only .topbar { gap: 3px; padding-inline: 4px; }
   .screen-only .topbar .brand { gap: 3px; }
-  .screen-only .topbar .brand-icon { width: 23px; height: 23px; padding: 1px; }
-  .screen-only .topbar .brand strong { font-size: 11px; }
+  .screen-only .topbar .brand-icon { width: 24px; height: 24px; padding: 1px; }
+  .screen-only .topbar .brand strong { font-size: 11.5px; }
   .screen-only .topbar .brand span { display: none; }
   .screen-only .topbar .topbar-actions { gap: 2px; }
   .screen-only .topbar .topbar-actions > .primary-button { min-height: 28px; padding-inline: 4px; font-size: 8px; }
